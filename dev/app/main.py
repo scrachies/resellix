@@ -122,4 +122,9 @@ if __name__ == "__main__":
         code = 1
     else:
         code = code or 0
+    if code != 0 and sys.platform == "darwin" and not getattr(sys, "frozen", False):
+        try:
+            input("\nPress Enter to close...")
+        except EOFError:
+            pass
     sys.exit(code)

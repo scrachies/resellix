@@ -225,7 +225,10 @@ def main() -> int:
             cfg_platforms = cfg_platforms.replace("kleinanzeigen", "")
     except Exception:
         pass
-    if "kleinanzeigen" in cfg_platforms:
+    skip_ka = os.getenv("RESELLIX_SKIP_KA", "").strip().lower() in ("1", "true", "yes")
+    if skip_ka:
+        _log("[Setup] Kleinanzeigen skipped (RESELLIX_SKIP_KA). Vinted/eBay still work.")
+    elif "kleinanzeigen" in cfg_platforms:
         if ensure_kleinanzeigen_deps():
             start_kleinanzeigen_api()
         else:
