@@ -20,12 +20,13 @@ def drop_shadow(
     *,
     blur: float = 40,
     offset_y: float = 12,
+    alpha: int = 90,
     color: QColor | None = None,
 ) -> QGraphicsDropShadowEffect:
     effect = QGraphicsDropShadowEffect(widget)
     effect.setBlurRadius(blur)
     effect.setOffset(0, offset_y)
-    effect.setColor(color or QColor(0, 0, 0, 90))
+    effect.setColor(color if color is not None else QColor(0, 0, 0, alpha))
     widget.setGraphicsEffect(effect)
     return effect
 

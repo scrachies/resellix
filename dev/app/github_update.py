@@ -30,13 +30,23 @@ def _run_git(args: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
         cwd=str(cwd),
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         timeout=120,
     )
 
 
 def _git_ok() -> bool:
     try:
-        subprocess.run(["git", "--version"], capture_output=True, timeout=10, check=True)
+        subprocess.run(
+            ["git", "--version"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=10,
+            check=True,
+        )
         return True
     except (subprocess.SubprocessError, FileNotFoundError):
         return False
@@ -95,16 +105,30 @@ def check_and_update(*, auto_pull: bool = True) -> UpdateResult:
         return UpdateResult(False, False, False, "Git not installed — skip update check.")
 
     if not (ROOT_DIR / ".git").is_dir():
-        return UpdateResult(False, False, False, "Not a git clone — use git clone to get updates.")
+        if not ensure_git_repo():
+            return UpdateResult(
+                False,
+                False,
+                False,
+                "Not a git repo yet — install Git, add GitHub access, then run updateapple.command.",
+            )
 
     try:
         fetch = _run_git(["fetch", "origin", GITHUB_BRANCH], ROOT_DIR)
         if fetch.returncode != 0:
+            err = (fetch.stderr or fetch.stdout or "").strip()
+            hint = ""
+            low = err.lower()
+            if any(x in low for x in ("denied", "403", "401", "permission", "authentication")):
+                hint = (
+                    " Ask Thomas to add your GitHub account as collaborator on scrachies/resellix, "
+                    "then sign in with a Personal Access Token (repo scope)."
+                )
             return UpdateResult(
                 True,
                 False,
                 False,
-                f"git fetch failed: {(fetch.stderr or fetch.stdout or '').strip()}",
+                f"git fetch failed: {err}.{hint}",
             )
 
         local = _run_git(["rev-parse", "HEAD"], ROOT_DIR)
@@ -199,15 +223,26 @@ def check_and_update(*, auto_pull: bool = True) -> UpdateResult:
         return UpdateResult(True, False, False, f"Update check error: {exc}")
 
 
+def _pip_env() -> dict:
+    import os
+
+    env = os.environ.copy()
+    env.setdefault("PYTHONIOENCODING", "utf-8")
+    env.setdefault("PYTHONUTF8", "1")
+    return env
+
+
 def _pip_refresh() -> None:
     venv_py = APP_DIR / ".venv" / ("Scripts" if sys.platform == "win32" else "bin") / "python"
     py = str(venv_py) if venv_py.is_file() else sys.executable
     req = APP_DIR / "requirements.txt"
+    env = _pip_env()
     if not req.is_file():
         return
     subprocess.run(
         [py, "-m", "pip", "install", "-r", str(req), "-q"],
         cwd=str(APP_DIR),
+        env=env,
         timeout=300,
         check=False,
     )
@@ -216,6 +251,7 @@ def _pip_refresh() -> None:
         subprocess.run(
             [py, "-m", "pip", "install", "-r", str(ka), "-q"],
             cwd=str(APP_DIR),
+            env=env,
             timeout=300,
             check=False,
         )

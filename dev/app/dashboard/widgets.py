@@ -5,7 +5,7 @@ import webbrowser
 from typing import Optional
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QCloseEvent, QFont, QPixmap
+from PyQt6.QtGui import QCloseEvent, QFont, QFontMetrics, QPixmap, QResizeEvent
 from PyQt6.QtWidgets import (
     QApplication,
     QFrame,
@@ -27,8 +27,8 @@ class StatCard(GlassCard):
     def __init__(self, title: str, value: str = "0", parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
         self.setObjectName("StatCard")
-        self.setMinimumWidth(180)
-        self.setMinimumHeight(118)
+        self.setMinimumWidth(0)
+        self.setMinimumHeight(108)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
         layout = QVBoxLayout(self)
@@ -39,18 +39,35 @@ class StatCard(GlassCard):
         self.title_lbl.setObjectName("CardTitle")
         layout.addWidget(self.title_lbl)
 
+        self._raw_value = value
         self.value_lbl = QLabel(value)
         self.value_lbl.setObjectName("CardValue")
-        self.value_lbl.setMinimumHeight(40)
+        self.value_lbl.setMinimumHeight(36)
+        self.value_lbl.setWordWrap(True)
+        self.value_lbl.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         font = QFont()
-        font.setPointSize(26)
+        font.setPointSize(24)
         font.setWeight(QFont.Weight.Bold)
         self.value_lbl.setFont(font)
         layout.addWidget(self.value_lbl)
         layout.addStretch(1)
 
     def set_value(self, value: str) -> None:
-        self.value_lbl.setText(value)
+        self._raw_value = str(value)
+        self._apply_value_display()
+
+    def _apply_value_display(self) -> None:
+        text = getattr(self, "_raw_value", "")
+        width = max(80, self.width() - 48)
+        metrics = QFontMetrics(self.value_lbl.font())
+        elided = metrics.elidedText(text, Qt.TextElideMode.ElideRight, width)
+        self.value_lbl.setText(elided)
+        self.value_lbl.setToolTip(text if elided != text else "")
+
+    def resizeEvent(self, event: QResizeEvent) -> None:
+        super().resizeEvent(event)
+        if hasattr(self, "_raw_value"):
+            self._apply_value_display()
 
 
 class DealCard(GlassCard):
@@ -116,9 +133,11 @@ class DealCard(GlassCard):
         btns.setSpacing(10)
         open_btn = QPushButton("Open listing")
         open_btn.setObjectName("PrimaryButton")
+        open_btn.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
         open_btn.clicked.connect(self._open)
         copy_btn = QPushButton("Copy link")
         copy_btn.setObjectName("GhostButton")
+        copy_btn.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
         copy_btn.clicked.connect(self._copy)
         btns.addWidget(open_btn)
         btns.addWidget(copy_btn)

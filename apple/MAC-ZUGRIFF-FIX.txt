@@ -1,0 +1,61 @@
+RESELLIX — Mac: "Sie haben nicht die nötigen Zugriffsrechte"
+===========================================================
+
+Das kommt oft nach einem ZIP-Download (Quarantäne) oder wenn die .command-Datei
+nicht ausführbar ist. Die App selbst ist meist OK — so startest du trotzdem:
+
+
+WICHTIG: Terminal zeigt "leer"?
+-------------------------------
+Oft läuft die Installation still (5–15 Min.) ODER der Ordner-Pfad stimmt nicht.
+Er muss Text sehen wie "[1/4] Python" — sonst Pfad prüfen (siehe unten).
+
+
+METHODE 1 (am zuverlässigsten) — Terminal
+---------------------------------------
+1. Ordner entpacken nach z.B. Desktop/resellix
+2. Terminal öffnen (Spotlight: "Terminal") — NICHT nur ein leeres Fenster!
+3. Diese Zeilen EINFÜGEN (Cmd+V) und nach jeder Zeile Enter:
+
+   cd ~/Desktop/resellix
+   ls dev/app/main.py
+   xattr -cr .
+   chmod +x apple/*.command
+   bash apple/startapple.command
+
+   Wenn "ls" sagt "No such file": Ordner heißt anders oder liegt in Downloads.
+   Dann z.B.:  cd ~/Downloads/resellix
+
+(Ersetze ~/Desktop/resellix falls der Ordner woanders liegt.)
+
+
+METHODE 2 — Doppelklick
+-----------------------
+1. Im Terminal einmal:  chmod +x ~/Desktop/resellix/apple/*.command
+2. Rechtsklick auf startapple.command → Öffnen → Öffnen
+   (nicht nur Doppelklick beim ersten Mal)
+
+
+METHODE 3 — Ordner-Rechte
+-------------------------
+- Resellix NICHT nach /Applications legen beim ersten Test
+- Besser: Desktop oder Dokumente
+- Nicht aus iCloud-only Ordner starten (erst lokal entpacken)
+
+
+GITHUB-UPDATES (anderes "Zugriff"-Problem)
+------------------------------------------
+Wenn im Terminal steht: git fetch failed / Permission denied / 403:
+
+1. Thomas muss dich auf GitHub einladen:
+   Repository scrachies/resellix → Settings → Collaborators → Add people
+2. Einladungs-E-Mail annehmen (GitHub-Konto)
+3. Einmal anmelden für Git:
+   - GitHub → Settings → Developer settings → Personal access token
+   - Token mit "repo" erzeugen
+   - Beim ersten git pull: Benutzername = GitHub-Name, Passwort = Token
+
+Ohne GitHub-Zugriff startet Resellix trotzdem — nur Auto-Update fehlt.
+
+
+Hilfe: Thomas (Lizenzschlüssel + GitHub-Einladung)

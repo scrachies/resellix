@@ -114,9 +114,9 @@ if __name__ == "__main__":
         except Exception:
             pass
         print(tb, file=sys.stderr)
-        if sys.platform == "win32" and not getattr(sys, "frozen", False):
+        if sys.platform in ("win32", "darwin") and not getattr(sys, "frozen", False):
             try:
-                input("\nFehler – Enter zum Schliessen...")
+                input("\nError — press Enter to close...")
             except EOFError:
                 pass
         code = 1

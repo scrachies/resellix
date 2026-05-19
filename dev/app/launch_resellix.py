@@ -17,6 +17,19 @@ KA_LOG = DEV_DIR / "kleinanzeigen_api.log"
 LEGACY_PLAYWRIGHT_MARKER = RUNTIME_DIR / "playwright_chromium_ok"
 KA_REQ = ROOT / "requirements-kleinanzeigen.txt"
 
+if sys.platform == "win32":
+    os.environ.setdefault("PYTHONUTF8", "1")
+    os.environ.setdefault("PYTHONIOENCODING", "utf-8")
+
+
+def _subprocess_env(extra: dict | None = None) -> dict:
+    env = os.environ.copy()
+    env.setdefault("PYTHONIOENCODING", "utf-8")
+    env.setdefault("PYTHONUTF8", "1")
+    if extra:
+        env.update(extra)
+    return env
+
 
 def _log(msg: str) -> None:
     print(msg, flush=True)
@@ -36,6 +49,7 @@ def _pip_install(args: list[str]) -> bool:
     return subprocess.run(
         [sys.executable, "-m", "pip", *args],
         cwd=str(ROOT),
+        env=_subprocess_env(),
     ).returncode == 0
 
 
@@ -94,6 +108,8 @@ def _process_alive(pid: int) -> bool:
                 ["tasklist", "/FI", f"PID eq {pid}", "/NH"],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 creationflags=subprocess.CREATE_NO_WINDOW,
             )
             return str(pid) in (out.stdout or "")
@@ -122,7 +138,7 @@ def start_kleinanzeigen_api() -> None:
     from playwright_setup import apply_playwright_env
 
     RUNTIME_DIR.mkdir(parents=True, exist_ok=True)
-    env = apply_playwright_env()
+    env = _subprocess_env(apply_playwright_env())
     env.setdefault("HEADLESS", "true")
     env["PYTHONUNBUFFERED"] = "1"
 

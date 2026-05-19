@@ -60,11 +60,16 @@ def playwright_can_launch(channel: str | None = None) -> bool:
 
 
 def _run_install(args: list[str], timeout_sec: int, env: dict | None = None) -> bool:
+    run_env = os.environ.copy()
+    run_env.setdefault("PYTHONIOENCODING", "utf-8")
+    run_env.setdefault("PYTHONUTF8", "1")
+    if env:
+        run_env.update(env)
     try:
         proc = subprocess.run(
             [sys.executable, "-m", "playwright", *args],
             cwd=str(ROOT),
-            env=env,
+            env=run_env,
             timeout=timeout_sec,
         )
         return proc.returncode == 0

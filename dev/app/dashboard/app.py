@@ -9,7 +9,7 @@ from datetime import datetime
 from typing import Optional
 
 from PyQt6.QtCore import Qt, QThread, QTimer, pyqtSignal
-from PyQt6.QtGui import QAction, QColor, QIcon, QKeySequence, QShortcut, QTextCharFormat
+from PyQt6.QtGui import QAction, QColor, QIcon, QKeySequence, QResizeEvent, QShortcut, QTextCharFormat
 from PyQt6.QtWidgets import (
     QApplication,
     QButtonGroup,
@@ -61,11 +61,13 @@ from .pickers import CategoryPickerWidget, PlatformPickerWidget, SizeFilterWidge
 from .platform_filter import PlatformFilterBar
 from .size_filter import SizeFilterBar
 from .styles import STYLESHEET
+from .layout_responsive import relayout_grid_columns
 from .ui_components import (
     GlassCard,
     GlassScroll,
     drop_shadow,
     form_label,
+    glow_shadow,
     page_header,
     section_title,
 )
@@ -80,8 +82,11 @@ from .workers import (
     TrendScanThread,
 )
 
-CONTENT_MARGINS = (32, 28, 32, 28)
-PAGE_SPACING = 18
+CONTENT_MARGINS = (24, 20, 24, 20)
+CONTENT_MARGINS_COMPACT = (16, 14, 16, 14)
+PAGE_SPACING = 16
+COMPACT_WIDTH = 1080
+NARROW_WIDTH = 920
 
 log = logging.getLogger("dashboard.app")
 
@@ -98,8 +103,9 @@ class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
         self.setWindowTitle("Resellix")
-        self.resize(1320, 820)
-        self.setMinimumSize(1100, 700)
+        self.resize(1280, 800)
+        self.setMinimumSize(900, 620)
+        self._layout_compact = False
 
         self.cfg: AppConfig = load_config()
         self.targets = TargetStore()
@@ -155,9 +161,12 @@ class MainWindow(QMainWindow):
         root.setSpacing(0)
 
         # ---- sidebar
-        sidebar = QFrame()
-        sidebar.setObjectName("Sidebar")
-        sidebar.setFixedWidth(268)
+        self._sidebar = QFrame()
+        self._sidebar.setObjectName("Sidebar")
+        self._sidebar.setMinimumWidth(200)
+        self._sidebar.setMaximumWidth(260)
+        self._sidebar.setFixedWidth(240)
+        sidebar = self._sidebar
         sb = QVBoxLayout(sidebar)
         sb.setContentsMargins(0, 0, 0, 0)
         sb.setSpacing(0)
@@ -268,6 +277,40 @@ class MainWindow(QMainWindow):
         # default page
         self.nav_dashboard.setChecked(True)
         self.stack.setCurrentIndex(PAGE_DASHBOARD)
+        self._content_pages = [
+            self.stack.widget(i) for i in range(self.stack.count()) if self.stack.widget(i)
+        ]
+        QTimer.singleShot(0, self._apply_responsive_layout)
+
+    def resizeEvent(self, event: QResizeEvent) -> None:
+        super().resizeEvent(event)
+        self._apply_responsive_layout()
+
+    def _apply_responsive_layout(self) -> None:
+        w = self.width()
+        compact = w < COMPACT_WIDTH
+        if compact != self._layout_compact:
+            self._layout_compact = compact
+            margins = CONTENT_MARGINS_COMPACT if compact else CONTENT_MARGINS
+            for page in getattr(self, "_content_pages", []):
+                lay = page.layout()
+                if lay is not None:
+                    lay.setContentsMargins(*margins)
+
+        if hasattr(self, "_sidebar"):
+            self._sidebar.setFixedWidth(212 if w < NARROW_WIDTH else (228 if compact else 248))
+
+        if hasattr(self, "_stat_grid") and hasattr(self, "_stat_cards"):
+            cols = 2 if w < COMPACT_WIDTH else 4
+            relayout_grid_columns(self._stat_grid, self._stat_cards, columns=cols, h_spacing=12)
+
+        if hasattr(self, "_trends_split"):
+            if w < COMPACT_WIDTH:
+                self._trends_split.setOrientation(Qt.Orientation.Vertical)
+                self._trends_split.setSizes([280, 400])
+            else:
+                self._trends_split.setOrientation(Qt.Orientation.Horizontal)
+                self._trends_split.setSizes([380, max(400, w - 700)])
 
     def _apply_entitlements_ui(self) -> None:
         ent = get_entitlements()
@@ -340,10 +383,12 @@ class MainWindow(QMainWindow):
     def _build_status_strip(self) -> QFrame:
         strip = QFrame()
         strip.setObjectName("StatusStrip")
-        strip.setMinimumHeight(64)
-        lay = QHBoxLayout(strip)
-        lay.setContentsMargins(28, 12, 28, 12)
-        lay.setSpacing(20)
+        lay = QVBoxLayout(strip)
+        lay.setContentsMargins(20, 10, 20, 10)
+        lay.setSpacing(8)
+
+        top = QHBoxLayout()
+        top.setSpacing(12)
 
         self.status_dot = QLabel("")
         self.status_dot.setObjectName("StatusDot")
@@ -354,31 +399,33 @@ class MainWindow(QMainWindow):
         status_grp.setSpacing(10)
         status_grp.addWidget(self.status_dot)
         status_grp.addWidget(self.status_text)
-        lay.addLayout(status_grp)
+        top.addLayout(status_grp)
+        top.addStretch(1)
 
-        sep1 = QFrame()
-        sep1.setFrameShape(QFrame.Shape.VLine)
-        sep1.setStyleSheet("color: rgba(15, 23, 42, 0.12); max-width: 1px;")
-        lay.addWidget(sep1)
+        self.btn_start = QPushButton("Start sniper")
+        self.btn_start.setObjectName("PrimaryButton")
+        self.btn_start.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        self.btn_pause = QPushButton("Pause")
+        self.btn_pause.setObjectName("GhostButton")
+        self.btn_pause.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        self.btn_pause.setEnabled(False)
+        self.btn_start.clicked.connect(self._toggle_sniper)
+        self.btn_pause.clicked.connect(self._toggle_pause)
+        top.addWidget(self.btn_start)
+        top.addWidget(self.btn_pause)
+        lay.addLayout(top)
 
+        metrics = QHBoxLayout()
+        metrics.setSpacing(18)
         self.status_uptime = QLabel("Uptime  00:00:00")
         self.status_checked = QLabel("Checked  0")
         self.status_matches = QLabel("Matches  0")
         for w in (self.status_uptime, self.status_checked, self.status_matches):
             w.setObjectName("ToolbarLabel")
-            lay.addWidget(w)
-
-        lay.addStretch(1)
-
-        self.btn_start = QPushButton("Start sniper")
-        self.btn_start.setObjectName("PrimaryButton")
-        self.btn_pause = QPushButton("Pause")
-        self.btn_pause.setObjectName("GhostButton")
-        self.btn_pause.setEnabled(False)
-        self.btn_start.clicked.connect(self._toggle_sniper)
-        self.btn_pause.clicked.connect(self._toggle_pause)
-        lay.addWidget(self.btn_start)
-        lay.addWidget(self.btn_pause)
+            w.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Preferred)
+            metrics.addWidget(w)
+        metrics.addStretch(1)
+        lay.addLayout(metrics)
 
         drop_shadow(strip, blur=20, offset_y=4, alpha=35)
         return strip
@@ -396,19 +443,20 @@ class MainWindow(QMainWindow):
             page_header("Dashboard", "Live sniper stats and your latest matches.")
         )
 
-        grid = QGridLayout()
-        grid.setSpacing(18)
-        for col in range(4):
-            grid.setColumnStretch(col, 1)
+        self._stat_grid = QGridLayout()
+        self._stat_grid.setSpacing(14)
         self.card_targets = StatCard("Active targets", "0")
         self.card_checked = StatCard("Listings checked", "0")
         self.card_matches = StatCard("Matches today", "0")
         self.card_state = StatCard("Sniper state", "stopped")
-        grid.addWidget(self.card_targets, 0, 0)
-        grid.addWidget(self.card_checked, 0, 1)
-        grid.addWidget(self.card_matches, 0, 2)
-        grid.addWidget(self.card_state, 0, 3)
-        outer.addLayout(grid)
+        self._stat_cards = (
+            self.card_targets,
+            self.card_checked,
+            self.card_matches,
+            self.card_state,
+        )
+        relayout_grid_columns(self._stat_grid, self._stat_cards, columns=4, h_spacing=14)
+        outer.addLayout(self._stat_grid)
 
         filter_card = GlassCard()
         fc = QVBoxLayout(filter_card)
@@ -416,44 +464,50 @@ class MainWindow(QMainWindow):
         fc.setSpacing(14)
         fc.addWidget(section_title("Recent matches"))
 
-        row1 = QHBoxLayout()
-        row1.setSpacing(12)
         self.dash_platform_filter = PlatformFilterBar()
         self.dash_platform_filter.selection_changed.connect(self._render_dashboard_feed)
-        row1.addWidget(form_label("Source"))
-        row1.addWidget(self.dash_platform_filter, 1)
         self.dash_target_filter = QComboBox()
-        self.dash_target_filter.setMinimumWidth(180)
+        self.dash_target_filter.setMinimumWidth(140)
         self.dash_target_filter.addItem("All targets")
         self.dash_target_filter.currentTextChanged.connect(
             lambda _: self._render_dashboard_feed()
         )
-        row1.addWidget(form_label("Target"))
-        row1.addWidget(self.dash_target_filter)
-        fc.addLayout(row1)
-
-        row2 = QHBoxLayout()
-        row2.setSpacing(12)
         self.dash_size_filter = SizeFilterBar()
         self.dash_size_filter.selection_changed.connect(self._render_dashboard_feed)
-        row2.addWidget(form_label("Size"))
-        row2.addWidget(self.dash_size_filter, 1)
         self.dash_sort = QComboBox()
-        self.dash_sort.setMinimumWidth(160)
+        self.dash_sort.setMinimumWidth(130)
         for _key, label in SORT_LABELS:
             self.dash_sort.addItem(label, _key)
         self.dash_sort.currentIndexChanged.connect(lambda _: self._render_dashboard_feed())
-        row2.addWidget(form_label("Sort"))
-        row2.addWidget(self.dash_sort)
         btn_dash_refresh = QPushButton("Refresh")
         btn_dash_refresh.setObjectName("GhostButton")
         btn_dash_refresh.clicked.connect(self._refresh_dashboard_feed)
         btn_dash_scan = QPushButton("Scan now")
         btn_dash_scan.setObjectName("PrimaryButton")
         btn_dash_scan.clicked.connect(self._scan_all_targets)
-        row2.addWidget(btn_dash_refresh)
-        row2.addWidget(btn_dash_scan)
+
+        row1 = QHBoxLayout()
+        row1.setSpacing(10)
+        row1.addWidget(form_label("Source"))
+        row1.addWidget(self.dash_platform_filter, 1)
+        fc.addLayout(row1)
+
+        row2 = QHBoxLayout()
+        row2.setSpacing(10)
+        row2.addWidget(form_label("Target"))
+        row2.addWidget(self.dash_target_filter, 1)
+        row2.addWidget(form_label("Size"))
+        row2.addWidget(self.dash_size_filter, 2)
         fc.addLayout(row2)
+
+        row3 = QHBoxLayout()
+        row3.setSpacing(10)
+        row3.addWidget(form_label("Sort"))
+        row3.addWidget(self.dash_sort)
+        row3.addStretch(1)
+        row3.addWidget(btn_dash_refresh)
+        row3.addWidget(btn_dash_scan)
+        fc.addLayout(row3)
         outer.addWidget(filter_card)
 
         hint = QLabel(
@@ -494,8 +548,8 @@ class MainWindow(QMainWindow):
         )
 
         form_scroll = GlassScroll()
-        form_scroll.setMinimumHeight(280)
-        form_scroll.setMaximumHeight(420)
+        form_scroll.setMinimumHeight(240)
+        form_scroll.setMaximumHeight(480)
         form_host = QWidget()
         form_outer = QVBoxLayout(form_host)
         form_outer.setContentsMargins(2, 2, 10, 2)
@@ -520,7 +574,7 @@ class MainWindow(QMainWindow):
         price_row = QGridLayout()
         price_row.setHorizontalSpacing(14)
         price_row.setVerticalSpacing(10)
-        for col, (label, attr) in enumerate(
+        for idx, (label, attr) in enumerate(
             [
                 ("Min price (€)", "in_min_price"),
                 ("Max price (€)", "in_max_price"),
@@ -528,13 +582,15 @@ class MainWindow(QMainWindow):
                 ("Min profit (€)", "in_min_profit"),
             ]
         ):
-            price_row.addWidget(form_label(label), 0, col)
+            col = idx % 2
+            row = (idx // 2) * 2
+            price_row.addWidget(form_label(label), row, col)
             spin = QDoubleSpinBox()
             spin.setRange(0, 9999)
             spin.setDecimals(2)
             spin.setSingleStep(1)
-            spin.setMinimumHeight(42)
-            spin.setMinimumWidth(130)
+            spin.setMinimumHeight(40)
+            spin.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
             if attr == "in_min_price":
                 spin.setSpecialValueText("—")
                 self.in_min_price = spin
@@ -545,7 +601,9 @@ class MainWindow(QMainWindow):
                 self.in_expected = spin
             else:
                 self.in_min_profit = spin
-            price_row.addWidget(spin, 1, col)
+            price_row.addWidget(spin, row + 1, col)
+        price_row.setColumnStretch(0, 1)
+        price_row.setColumnStretch(1, 1)
         addl.addLayout(price_row)
 
         addl.addWidget(section_title("Text filters"))
@@ -629,34 +687,46 @@ class MainWindow(QMainWindow):
         outer.setContentsMargins(*CONTENT_MARGINS)
         outer.setSpacing(PAGE_SPACING)
 
-        head = QHBoxLayout()
-        title = QLabel("Cheap Deals")
-        title.setObjectName("SectionTitle")
-        head.addWidget(title)
-        head.addStretch(1)
+        outer.addWidget(
+            page_header("Cheap Deals", "Underpriced steals from your brand scan.")
+        )
+
+        deals_toolbar = GlassCard()
+        deals_toolbar.setObjectName("ToolbarGlass")
+        dt = QVBoxLayout(deals_toolbar)
+        dt.setContentsMargins(18, 14, 18, 14)
+        dt.setSpacing(10)
+
+        deals_title_row = QHBoxLayout()
         self.btn_scan_deals = QPushButton("Scan now")
         self.btn_scan_deals.setObjectName("PrimaryButton")
         self.btn_scan_deals.clicked.connect(self._scan_cheap_deals)
         self.btn_clear_deals = QPushButton("Clear")
         self.btn_clear_deals.setObjectName("GhostButton")
         self.btn_clear_deals.clicked.connect(self._clear_deals)
+        deals_title_row.addStretch(1)
+        deals_title_row.addWidget(self.btn_scan_deals)
+        deals_title_row.addWidget(self.btn_clear_deals)
+        dt.addLayout(deals_title_row)
+
         self.deals_sort = QComboBox()
         for _key, label in SORT_LABELS:
             self.deals_sort.addItem(label, _key)
         self.deals_size_filter = SizeFilterBar()
         self.deals_size_filter.selection_changed.connect(self._render_deals_feed)
+        deals_filters = QHBoxLayout()
+        deals_filters.setSpacing(10)
         lbl_dsz = QLabel("Size")
         lbl_dsz.setObjectName("ToolbarLabel")
-        head.addWidget(lbl_dsz)
-        head.addWidget(self.deals_size_filter)
-
         lbl_dsort = QLabel("Sort")
         lbl_dsort.setObjectName("ToolbarLabel")
-        head.addWidget(lbl_dsort)
-        head.addWidget(self.deals_sort)
-        head.addWidget(self.btn_scan_deals)
-        head.addWidget(self.btn_clear_deals)
-        outer.addLayout(head)
+        deals_filters.addWidget(lbl_dsz)
+        deals_filters.addWidget(self.deals_size_filter, 1)
+        deals_filters.addWidget(lbl_dsort)
+        deals_filters.addWidget(self.deals_sort)
+        deals_filters.addStretch(1)
+        dt.addLayout(deals_filters)
+        outer.addWidget(deals_toolbar)
 
         info = QLabel(
             "Real underpriced steals only (≥38% below value). Use Size to narrow to your fit."
@@ -755,6 +825,7 @@ class MainWindow(QMainWindow):
         right_lay.addWidget(self.trend_drill_scroll, 1)
         split.addWidget(right)
         split.setSizes([380, 520])
+        self._trends_split = split
         outer.addWidget(split, 1)
 
         return page
@@ -806,8 +877,10 @@ class MainWindow(QMainWindow):
         form = GlassCard()
         fl = QGridLayout(form)
         fl.setContentsMargins(26, 24, 26, 24)
-        fl.setHorizontalSpacing(18)
-        fl.setVerticalSpacing(14)
+        fl.setHorizontalSpacing(16)
+        fl.setVerticalSpacing(12)
+        for col in (1, 3):
+            fl.setColumnStretch(col, 1)
 
         row = 0
         api_hint = QLabel(
@@ -915,6 +988,7 @@ class MainWindow(QMainWindow):
         row += 1
 
         scroll_lay.addWidget(form)
+        self._settings_form_grid = fl
 
         help_lbl = QLabel(
             "Backend: bundled dev/app/vendor/pyVinted. "
@@ -992,6 +1066,11 @@ class MainWindow(QMainWindow):
 
     def _switch_page(self, idx: int) -> None:
         switch_stack_page(self.stack, idx)
+        for btn in self.nav_group.buttons():
+            if btn.isChecked():
+                glow_shadow(btn, blur=20, r=139, g=92, b=246, alpha=90)
+            else:
+                btn.setGraphicsEffect(None)
 
     # ------------------------------------------------------------------
     # Status strip / dashboard refresh
@@ -1201,6 +1280,20 @@ class MainWindow(QMainWindow):
         self.targets.toggle(idx)
 
     def _remove_target(self, idx: int) -> None:
+        targets = self.targets.list()
+        if not (0 <= idx < len(targets)):
+            return
+        keyword = targets[idx].keyword
+        reply = QMessageBox.question(
+            self,
+            "Remove snipe target",
+            f'Are you sure you want to delete the snipe "{keyword}"?\n\n'
+            "This cannot be undone.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
         removed = self.targets.remove(idx)
         if removed:
             n = db.delete_matches_for_target(removed.keyword)
