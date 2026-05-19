@@ -9,7 +9,7 @@ from datetime import datetime
 from typing import Optional
 
 from PyQt6.QtCore import Qt, QThread, QTimer, pyqtSignal
-from PyQt6.QtGui import QAction, QIcon, QKeySequence, QShortcut
+from PyQt6.QtGui import QAction, QColor, QIcon, QKeySequence, QShortcut, QTextCharFormat
 from PyQt6.QtWidgets import (
     QApplication,
     QButtonGroup,
@@ -148,6 +148,7 @@ class MainWindow(QMainWindow):
 
     def _build_ui(self) -> None:
         central = QWidget()
+        central.setObjectName("AppCanvas")
         self.setCentralWidget(central)
         root = QHBoxLayout(central)
         root.setContentsMargins(0, 0, 0, 0)
@@ -156,7 +157,7 @@ class MainWindow(QMainWindow):
         # ---- sidebar
         sidebar = QFrame()
         sidebar.setObjectName("Sidebar")
-        sidebar.setFixedWidth(252)
+        sidebar.setFixedWidth(268)
         sb = QVBoxLayout(sidebar)
         sb.setContentsMargins(0, 0, 0, 0)
         sb.setSpacing(0)
@@ -348,7 +349,7 @@ class MainWindow(QMainWindow):
         self.status_dot.setObjectName("StatusDot")
         self.status_dot.setFixedSize(10, 10)
         self.status_text = QLabel("Idle")
-        self.status_text.setStyleSheet("font-weight: 600; font-size: 14px;")
+        self.status_text.setObjectName("StatusText")
         status_grp = QHBoxLayout()
         status_grp.setSpacing(10)
         status_grp.addWidget(self.status_dot)
@@ -1027,9 +1028,13 @@ class MainWindow(QMainWindow):
         self.status_dot.style().unpolish(self.status_dot)
         self.status_dot.style().polish(self.status_dot)
 
-        self.btn_start.setText("⏹ Stop sniper" if self.sniper.running else "▶ Start sniper")
-        self.btn_pause.setEnabled(self.sniper.running)
-        self.btn_pause.setText("▶ Resume" if self.sniper.paused else "⏸ Pause")
+        running = self.sniper.running
+        self.btn_start.setText("Stop sniper" if running else "Start sniper")
+        self.btn_start.setObjectName("StopButton" if running else "PrimaryButton")
+        self.btn_start.style().unpolish(self.btn_start)
+        self.btn_start.style().polish(self.btn_start)
+        self.btn_pause.setEnabled(running)
+        self.btn_pause.setText("Resume" if self.sniper.paused else "Pause")
 
     # ------------------------------------------------------------------
     # Sniper controls
@@ -1339,9 +1344,44 @@ class MainWindow(QMainWindow):
             self.status_text.setText(str(action))
 
     def _append_log(self, msg: str) -> None:
+        if not hasattr(self, "log_view"):
+            return
         ts = datetime.now().strftime("%H:%M:%S")
-        line = f"[{ts}] {msg}"
-        self.log_view.appendPlainText(line)
+        cursor = self.log_view.textCursor()
+        cursor.movePosition(cursor.MoveOperation.End)
+
+        fmt_ts = QTextCharFormat()
+        fmt_ts.setForeground(QColor("#64748b"))
+        cursor.insertText(f"[{ts}] ", fmt_ts)
+
+        if "MATCH" in msg.upper():
+            fmt_match = QTextCharFormat()
+            fmt_match.setForeground(QColor("#22d3ee"))
+            fmt_match.setFontWeight(700)
+            parts = msg.split("[", 1)
+            if len(parts) == 2:
+                cursor.insertText(parts[0], fmt_ts)
+                fmt_brand = QTextCharFormat()
+                fmt_brand.setForeground(QColor("#a5b4fc"))
+                cursor.insertText("[" + parts[1], fmt_brand)
+            else:
+                cursor.insertText(msg, fmt_match)
+        elif "error" in msg.lower() or "fail" in msg.lower():
+            fmt_err = QTextCharFormat()
+            fmt_err.setForeground(QColor("#fb7185"))
+            cursor.insertText(msg, fmt_err)
+        elif "Telegram" in msg or "Sniper" in msg:
+            fmt_sys = QTextCharFormat()
+            fmt_sys.setForeground(QColor("#c4b5fd"))
+            cursor.insertText(msg, fmt_sys)
+        else:
+            fmt_def = QTextCharFormat()
+            fmt_def.setForeground(QColor("#e2e8f0"))
+            cursor.insertText(msg, fmt_def)
+
+        cursor.insertText("\n")
+        self.log_view.setTextCursor(cursor)
+        self.log_view.ensureCursorVisible()
 
     # ------------------------------------------------------------------
     # Cheap deals

@@ -74,7 +74,7 @@ class DealCard(GlassCard):
         super().__init__(parent)
         self.setObjectName("DealCard")
         self.url = url
-        drop_shadow(self, blur=24, offset_y=5, alpha=40)
+        drop_shadow(self, blur=32, offset_y=8)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.setMinimumHeight(self.PHOTO_H + 36)
 

@@ -1,4 +1,4 @@
-"""Reusable glass panels, shadows, and form helpers."""
+"""Glass panels, glow shadows, form helpers."""
 from __future__ import annotations
 
 from typing import Optional
@@ -18,30 +18,48 @@ from PyQt6.QtWidgets import (
 def drop_shadow(
     widget: QWidget,
     *,
-    blur: float = 32,
-    offset_y: float = 8,
-    alpha: int = 52,
+    blur: float = 40,
+    offset_y: float = 12,
+    color: QColor | None = None,
 ) -> QGraphicsDropShadowEffect:
     effect = QGraphicsDropShadowEffect(widget)
     effect.setBlurRadius(blur)
     effect.setOffset(0, offset_y)
-    effect.setColor(QColor(15, 23, 42, alpha))
+    effect.setColor(color or QColor(0, 0, 0, 90))
+    widget.setGraphicsEffect(effect)
+    return effect
+
+
+def glow_shadow(
+    widget: QWidget,
+    *,
+    blur: float = 28,
+    r: int = 34,
+    g: int = 211,
+    b: int = 238,
+    alpha: int = 120,
+) -> QGraphicsDropShadowEffect:
+    effect = QGraphicsDropShadowEffect(widget)
+    effect.setBlurRadius(blur)
+    effect.setOffset(0, 0)
+    effect.setColor(QColor(r, g, b, alpha))
     widget.setGraphicsEffect(effect)
     return effect
 
 
 class GlassCard(QFrame):
-    """Floating glass panel with soft shadow."""
+    """Frosted floating panel."""
 
-    def __init__(self, parent: Optional[QWidget] = None) -> None:
+    def __init__(self, parent: Optional[QWidget] = None, *, strong_glow: bool = False) -> None:
         super().__init__(parent)
         self.setObjectName("GlassCard")
-        drop_shadow(self, blur=36, offset_y=10, alpha=58)
+        if strong_glow:
+            glow_shadow(self, blur=32, r=139, g=92, b=246, alpha=80)
+        else:
+            drop_shadow(self, blur=48, offset_y=14, color=QColor(0, 0, 0, 100))
 
 
 class GlassScroll(QScrollArea):
-    """Scroll area styled for content pages."""
-
     def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
         self.setObjectName("GlassScroll")
@@ -65,8 +83,8 @@ def section_title(text: str) -> QLabel:
 def page_header(title: str, subtitle: str = "") -> QWidget:
     w = QWidget()
     lay = QVBoxLayout(w)
-    lay.setContentsMargins(0, 0, 0, 4)
-    lay.setSpacing(4)
+    lay.setContentsMargins(0, 0, 0, 6)
+    lay.setSpacing(6)
     t = QLabel(title)
     t.setObjectName("SectionTitle")
     lay.addWidget(t)
@@ -76,7 +94,3 @@ def page_header(title: str, subtitle: str = "") -> QWidget:
         s.setWordWrap(True)
         lay.addWidget(s)
     return w
-
-
-def filter_bar_card() -> GlassCard:
-    return GlassCard()
