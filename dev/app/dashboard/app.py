@@ -107,6 +107,7 @@ class MainWindow(QMainWindow):
 
         self._build_ui()
         self._wire_signals()
+        self._apply_sidebar_update_notice()
         self._refresh_status_strip()
         self._refresh_targets_table()
         self._rebuild_target_filter_combo()
@@ -178,6 +179,29 @@ class MainWindow(QMainWindow):
         self.nav_logs = nav_btn("Logs", PAGE_LOGS)
         sb.addStretch(1)
 
+        self._sidebar_update_frame = QFrame()
+        self._sidebar_update_frame.setObjectName("SidebarUpdateBanner")
+        update_layout = QVBoxLayout(self._sidebar_update_frame)
+        update_layout.setContentsMargins(12, 0, 12, 8)
+        update_layout.setSpacing(4)
+        update_title = QLabel("Update available")
+        update_title.setObjectName("SidebarUpdateTitle")
+        self._sidebar_update_text = QLabel("")
+        self._sidebar_update_text.setObjectName("SidebarUpdateText")
+        self._sidebar_update_text.setWordWrap(True)
+        update_layout.addWidget(update_title)
+        update_layout.addWidget(self._sidebar_update_text)
+        self._sidebar_update_frame.hide()
+        sb.addWidget(self._sidebar_update_frame)
+
+        attribution = QLabel(
+            "Thomas Mikhline\n"
+            "Private use only. Sharing may result in legal action."
+        )
+        attribution.setObjectName("SidebarAttribution")
+        attribution.setWordWrap(True)
+        sb.addWidget(attribution)
+
         version = QLabel("Resellix v1.0")
         version.setObjectName("SidebarVersion")
         sb.addWidget(version)
@@ -210,6 +234,23 @@ class MainWindow(QMainWindow):
         # default page
         self.nav_dashboard.setChecked(True)
         self.stack.setCurrentIndex(PAGE_DASHBOARD)
+
+    def _apply_sidebar_update_notice(self) -> None:
+        try:
+            from github_update import sidebar_update_notice
+
+            notice = sidebar_update_notice()
+        except Exception:
+            notice = None
+        frame = getattr(self, "_sidebar_update_frame", None)
+        label = getattr(self, "_sidebar_update_text", None)
+        if not frame or not label:
+            return
+        if notice:
+            label.setText(notice)
+            frame.show()
+        else:
+            frame.hide()
 
     # ----- status strip -----
 

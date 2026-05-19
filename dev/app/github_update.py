@@ -110,7 +110,12 @@ def check_and_update(*, auto_pull: bool = True) -> UpdateResult:
             return UpdateResult(True, False, False, "Empty git revision.")
 
         if local_sha == remote_sha:
-            _write_state(local_sha=local_sha, remote_sha=remote_sha, update_available=False)
+            _write_state(
+                local_sha=local_sha,
+                remote_sha=remote_sha,
+                update_available=False,
+                update_message="",
+            )
             return UpdateResult(
                 True,
                 False,
@@ -124,23 +129,39 @@ def check_and_update(*, auto_pull: bool = True) -> UpdateResult:
         n_behind = int((behind.stdout or "0").strip() or "0")
 
         if not auto_pull:
-            _write_state(local_sha=local_sha, remote_sha=remote_sha, update_available=True)
+            msg = (
+                f"Update available ({n_behind} commit(s)). "
+                "Run updatewindows.bat or updateapple.command, then restart."
+            )
+            _write_state(
+                local_sha=local_sha,
+                remote_sha=remote_sha,
+                update_available=True,
+                update_message=msg,
+            )
             return UpdateResult(
                 True,
                 True,
                 False,
-                f"Update available ({n_behind} commit(s)). Run updatewindows.bat or updateapple.command.",
+                msg,
                 local_sha=local_sha,
                 remote_sha=remote_sha,
             )
 
         pull = _run_git(["pull", "--ff-only", "origin", GITHUB_BRANCH], ROOT_DIR)
         if pull.returncode != 0:
+            msg = f"Update available but pull failed: {(pull.stderr or pull.stdout or '').strip()}"
+            _write_state(
+                local_sha=local_sha,
+                remote_sha=remote_sha,
+                update_available=True,
+                update_message=msg,
+            )
             return UpdateResult(
                 True,
                 True,
                 False,
-                f"Update available but pull failed: {(pull.stderr or pull.stdout or '').strip()}",
+                msg,
                 local_sha=local_sha,
                 remote_sha=remote_sha,
             )
@@ -148,7 +169,13 @@ def check_and_update(*, auto_pull: bool = True) -> UpdateResult:
         _pip_refresh()
         new_local = _run_git(["rev-parse", "HEAD"], ROOT_DIR)
         new_sha = (new_local.stdout or "").strip()
-        _write_state(local_sha=new_sha, remote_sha=new_sha, update_available=False, last_pull_ok=True)
+        _write_state(
+            local_sha=new_sha,
+            remote_sha=new_sha,
+            update_available=False,
+            update_message="",
+            last_pull_ok=True,
+        )
         return UpdateResult(
             True,
             True,
@@ -196,6 +223,17 @@ def main() -> int:
     return 0 if result.checked and not result.update_available or result.pulled else (
         2 if result.update_available else 1
     )
+
+
+def sidebar_update_notice() -> str | None:
+    """Short text for the dashboard when an update could not be applied automatically."""
+    state = _read_state()
+    if not state.get("update_available"):
+        return None
+    msg = (state.get("update_message") or "").strip()
+    if msg:
+        return msg
+    return "Update available — run the update script in windows/ or apple/, then restart."
 
 
 if __name__ == "__main__":

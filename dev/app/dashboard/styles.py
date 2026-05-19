@@ -79,10 +79,30 @@ QPushButton#NavButton:checked {{
     color: {COLOR_ACCENT};
     font-weight: 600;
 }}
+QFrame#SidebarUpdateBanner {{
+    background: rgba(255, 159, 10, 0.12);
+    border: 1px solid rgba(255, 159, 10, 0.35);
+    border-radius: 10px;
+    margin: 0 10px 6px 10px;
+}}
+QLabel#SidebarUpdateTitle {{
+    color: #ffb340;
+    font-size: 10px;
+    font-weight: 600;
+}}
+QLabel#SidebarUpdateText {{
+    color: {COLOR_TEXT_MUTED};
+    font-size: 9px;
+}}
+QLabel#SidebarAttribution {{
+    color: {COLOR_TEXT_MUTED};
+    font-size: 9px;
+    padding: 0 16px 6px 16px;
+}}
 QLabel#SidebarVersion {{
     color: {COLOR_TEXT_MUTED};
     font-size: 11px;
-    padding: 16px 20px 20px 20px;
+    padding: 0 20px 20px 20px;
 }}
 
 /* Status */
