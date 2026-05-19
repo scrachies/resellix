@@ -1,6 +1,7 @@
 """Adapter for herissondev/vinted-api-wrapper (pyVinted).
 
-Uses bundled copy in ``vendor/pyVinted`` if pip install is missing.
+Uses the bundled copy in ``dev/app/vendor/pyVinted`` (shipped with Resellix).
+There is no reliable ``pip install pyvinted`` package on PyPI.
 """
 from __future__ import annotations
 
@@ -10,11 +11,12 @@ from pathlib import Path
 from typing import Any, Optional
 from urllib.parse import urlparse
 
-from config import AppConfig, ROOT_DIR
+from config import APP_DIR, AppConfig
 
 log = logging.getLogger("pyvinted")
 
-_VENDOR = ROOT_DIR / "vendor"
+_VENDOR = APP_DIR / "vendor"
+_BUNDLE = _VENDOR / "pyVinted"
 _PYVINTED: Any = None
 
 
@@ -25,6 +27,11 @@ def _ensure_pyvinted_path() -> None:
 
 
 def _import_pyvinted():
+    if not _BUNDLE.is_dir():
+        raise RuntimeError(
+            f"Bundled pyVinted missing ({_BUNDLE}). "
+            "Re-clone the repo or restore dev/app/vendor/pyVinted."
+        )
     _ensure_pyvinted_path()
     try:
         from pyVinted import Vinted
@@ -33,8 +40,19 @@ def _import_pyvinted():
         return Vinted, requester
     except ImportError as exc:
         raise RuntimeError(
-            "pyVinted could not be loaded. Run install.bat in the project folder."
+            "pyVinted could not be loaded from dev/app/vendor/pyVinted. "
+            "Run windows\\startwindows.bat or apple/startapple.command again."
         ) from exc
+
+
+def ensure_pyvinted() -> bool:
+    """Verify bundled pyVinted imports (no pip install)."""
+    try:
+        _import_pyvinted()
+        return True
+    except RuntimeError as exc:
+        log.error("%s", exc)
+        return False
 
 
 def _proxy_dict(proxy_url: str) -> Optional[dict[str, str]]:
@@ -44,6 +62,10 @@ def _proxy_dict(proxy_url: str) -> Optional[dict[str, str]]:
 
 
 def prepare_session(cfg: AppConfig, catalog_url: str) -> None:
+    if not ensure_pyvinted():
+        raise RuntimeError(
+            "pyVinted is not available. Restore dev/app/vendor/pyVinted and restart."
+        )
     _, requester = _import_pyvinted()
 
     netloc = urlparse(catalog_url).netloc or cfg.vinted_host or "www.vinted.de"
@@ -94,18 +116,16 @@ def diagnose(cfg: AppConfig) -> list[str]:
     from vinted_api import build_catalog_url
 
     lines = [
-        "Backend: pyVinted (bundled in vendor/ + optional pip pyvinted)",
+        "Backend: pyVinted (bundled dev/app/vendor/pyVinted)",
         f"Host: {cfg.vinted_host}",
-        f"Vendor path: {_VENDOR} ({'found' if _VENDOR.is_dir() else 'missing'})",
+        f"Bundle: {_BUNDLE} ({'found' if _BUNDLE.is_dir() else 'MISSING'})",
         "",
     ]
-    try:
-        _import_pyvinted()
-        lines.append("Import: OK")
-    except RuntimeError as exc:
-        lines.append(f"Import: FAILED – {exc}")
+    if not ensure_pyvinted():
+        lines.append("Import: FAILED – restore vendor/pyVinted from the Resellix repo.")
         return lines
 
+    lines.append("Import: OK")
     test_url = build_catalog_url(
         cfg.vinted_host, search_text="nike", max_price=50, per_page=3, page=1
     )

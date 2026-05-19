@@ -1,0 +1,20 @@
+RESELLIX — ZIP INSTALL (private use, Thomas Mikhline)
+=====================================================
+
+1. Unzip this folder anywhere (e.g. Desktop\resellix).
+
+2. Install Python 3.11+ and Git (Windows: python.org + git-scm.com).
+
+3. Start:
+     Windows: double-click  windows\startwindows.bat
+     Mac:     chmod +x apple/*.command  then  ./apple/startapple.command
+
+   First run installs packages (5–15 min). No GitHub needed for this zip.
+
+4. Open Settings in the app:
+     Telegram bot token + chat ID
+     Vinted session cookie
+
+5. Updates: get a new zip from Thomas, or use git clone if you have GitHub access.
+
+Do not redistribute this zip.

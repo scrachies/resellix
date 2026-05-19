@@ -194,8 +194,21 @@ def main() -> int:
         _log(f"[Update] skipped: {exc}")
 
     ensure_env_file()
+
+    from pyvinted_client import ensure_pyvinted
+
+    if not ensure_pyvinted():
+        _log("[WARN] pyVinted not ready — Vinted search may fail until you restart via start script.")
+
     cfg = load_config()
     cfg_platforms = ",".join(cfg.sniper_platforms or []).lower()
+    try:
+        from subscription import get_entitlements
+
+        if "kleinanzeigen" not in get_entitlements().allowed_platforms:
+            cfg_platforms = cfg_platforms.replace("kleinanzeigen", "")
+    except Exception:
+        pass
     if "kleinanzeigen" in cfg_platforms:
         if ensure_kleinanzeigen_deps():
             start_kleinanzeigen_api()

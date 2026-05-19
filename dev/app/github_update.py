@@ -83,6 +83,14 @@ def check_and_update(*, auto_pull: bool = True) -> UpdateResult:
     Fetch origin and pull if local HEAD is behind.
     Skips if not a git repo or git missing.
     """
+    try:
+        from subscription import get_entitlements, git_updates_blocked_message
+
+        if not get_entitlements().git_updates_allowed:
+            return UpdateResult(False, False, False, git_updates_blocked_message())
+    except Exception:
+        pass
+
     if not _git_ok():
         return UpdateResult(False, False, False, "Git not installed — skip update check.")
 

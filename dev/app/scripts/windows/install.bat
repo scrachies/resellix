@@ -19,7 +19,7 @@ echo Installing Playwright for Kleinanzeigen...
 python -m playwright install chromium
 if not exist "%ROOT%\.runtime" mkdir "%ROOT%\.runtime"
 echo ok> "%ROOT%\.runtime\playwright_chromium_ok"
-python -m pip install pyvinted>=0.5.3 --upgrade
+python -c "import sys; sys.path.insert(0,'vendor'); from pyVinted import Vinted; print('OK: bundled pyVinted')"
 python -m pip install --force-reinstall "PyQt6>=6.6.0" "PyQt6-Qt6>=6.6.0" "PyQt6-sip>=13.6"
 python -c "from PyQt6.QtWidgets import QApplication; print('PyQt6 OK')"
 

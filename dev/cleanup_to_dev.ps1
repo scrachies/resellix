@@ -1,7 +1,7 @@
 # Run with Resellix CLOSED. Leaves: dev, windows, apple, IMPORTANT-README.md, .gitignore
 $Root = Split-Path $PSScriptRoot -Parent
 $Dev = $PSScriptRoot
-$Keep = @('dev','windows','apple','IMPORTANT-README.md','.git','.gitignore')
+$Keep = @('dev','windows','apple','README-EN.txt','README-DE.txt','.git','.gitignore')
 
 $RootApp = Join-Path $Root 'app'
 $DevApp = Join-Path $Dev 'app'

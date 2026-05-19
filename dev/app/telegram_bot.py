@@ -38,7 +38,9 @@ import database as db
 from config import AppConfig
 from trends import format_trends, save_trends, scan_trends
 from platforms import normalize_platforms
+from search_query import looks_like_search_request
 from telegram_search import TelegramSearchMode
+from subscription import can_add_snipe_target, require_feature
 from vinted import SnipeTarget, TargetStore
 
 if TYPE_CHECKING:
@@ -211,6 +213,10 @@ class ResellTelegramBot:
     async def _cmd_search(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         if not self._authorized(update):
             return
+        ok, msg = require_feature("telegram_search")
+        if not ok:
+            await update.message.reply_text(msg)
+            return
         raw = " ".join(ctx.args) if ctx.args else ""
         await self.search_mode.start_from_command(update, raw)
 
@@ -225,6 +231,11 @@ class ResellTelegramBot:
         if not self._authorized(update) or not update.message:
             return
         text = update.message.text or ""
+        if looks_like_search_request(text):
+            ok, msg = require_feature("telegram_search")
+            if not ok:
+                await update.message.reply_text(msg)
+                return
         await self.search_mode.handle_message(update, ctx, text)
 
     async def _cmd_add(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
@@ -236,6 +247,10 @@ class ResellTelegramBot:
             await update.message.reply_html(
                 "Usage: <code>/add keyword | max:20 | profit:5 | expect:60</code>"
             )
+            return
+        ok, msg = can_add_snipe_target(len(self.targets.list()))
+        if not ok:
+            await update.message.reply_text(msg)
             return
         self.targets.add(target)
         await update.message.reply_html(
@@ -309,6 +324,10 @@ class ResellTelegramBot:
 
     async def _cmd_trends(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         if not self._authorized(update):
+            return
+        ok, msg = require_feature("trends")
+        if not ok:
+            await update.message.reply_text(msg)
             return
         await update.message.reply_text("🔎 Scanning trends, give me ~20 seconds...")
         loop = asyncio.get_running_loop()

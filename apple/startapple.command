@@ -13,7 +13,6 @@ PY="$VENV/bin/python"
 
 "$PY" -m pip install -q --upgrade pip
 "$PY" -m pip install -q -r "$APP/requirements.txt"
-"$PY" -m pip install -q "pyvinted>=0.5.3" 2>/dev/null || true
 [ -f "$APP/requirements-kleinanzeigen.txt" ] && \
   "$PY" -m pip install -q -r "$APP/requirements-kleinanzeigen.txt" 2>/dev/null || true
 

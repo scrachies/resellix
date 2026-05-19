@@ -619,8 +619,13 @@ def deal_score(listing: Listing, expected_eur: float | None = None) -> float:
 
 
 def random_sleep_seconds(cfg: AppConfig) -> float:
-    lo = max(8, int(cfg.poll_min_seconds))
-    hi = max(lo + 1, int(cfg.poll_max_seconds))
+    try:
+        from subscription import clamp_poll_intervals
+
+        lo, hi = clamp_poll_intervals(int(cfg.poll_min_seconds), int(cfg.poll_max_seconds))
+    except Exception:
+        lo = max(8, int(cfg.poll_min_seconds))
+        hi = max(lo + 1, int(cfg.poll_max_seconds))
     return random.uniform(lo, hi)
 
 

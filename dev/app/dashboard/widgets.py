@@ -5,8 +5,7 @@ import webbrowser
 from typing import Optional
 
 from PyQt6.QtCore import Qt, QSize
-from PyQt6.QtGui import QPixmap
-from PyQt6.QtGui import QCloseEvent
+from PyQt6.QtGui import QCloseEvent, QFont
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -21,15 +20,18 @@ from .photo_loader import PhotoLoader
 
 
 class StatCard(QFrame):
-    """Small KPI card: title + big number."""
+    """KPI card with roomy typography."""
 
     def __init__(self, title: str, value: str = "0", parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
-        self.setObjectName("Card")
-        self.setMinimumHeight(96)
+        self.setObjectName("StatCard")
+        self.setMinimumWidth(200)
+        self.setMinimumHeight(112)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(18, 14, 18, 14)
-        layout.setSpacing(6)
+        layout.setContentsMargins(22, 18, 22, 18)
+        layout.setSpacing(8)
 
         self.title_lbl = QLabel(title.upper())
         self.title_lbl.setObjectName("CardTitle")
@@ -37,6 +39,12 @@ class StatCard(QFrame):
 
         self.value_lbl = QLabel(value)
         self.value_lbl.setObjectName("CardValue")
+        self.value_lbl.setWordWrap(False)
+        self.value_lbl.setMinimumHeight(40)
+        font = QFont()
+        font.setPointSize(26)
+        font.setWeight(QFont.Weight.Bold)
+        self.value_lbl.setFont(font)
         layout.addWidget(self.value_lbl)
         layout.addStretch(1)
 
@@ -47,8 +55,8 @@ class StatCard(QFrame):
 class DealCard(QFrame):
     """Listing preview card: photo on the left, info on the right."""
 
-    PHOTO_W = 130
-    PHOTO_H = 130
+    PHOTO_W = 136
+    PHOTO_H = 136
     load_photos: bool = True
 
     def __init__(
@@ -66,22 +74,20 @@ class DealCard(QFrame):
         self.setObjectName("DealCard")
         self.url = url
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        self.setMinimumHeight(self.PHOTO_H + 24)
+        self.setMinimumHeight(self.PHOTO_H + 32)
 
         root = QHBoxLayout(self)
-        root.setContentsMargins(12, 12, 12, 12)
-        root.setSpacing(14)
+        root.setContentsMargins(16, 16, 16, 16)
+        root.setSpacing(16)
 
-        # photo
-        self.photo = QLabel("loading…")
+        self.photo = QLabel("Loading")
         self.photo.setObjectName("PhotoLabel")
         self.photo.setFixedSize(self.PHOTO_W, self.PHOTO_H)
         self.photo.setAlignment(Qt.AlignmentFlag.AlignCenter)
         root.addWidget(self.photo)
 
-        # info column
         info = QVBoxLayout()
-        info.setSpacing(4)
+        info.setSpacing(6)
 
         title_lbl = QLabel(title)
         title_lbl.setObjectName("DealTitle")
@@ -105,8 +111,9 @@ class DealCard(QFrame):
         info.addStretch(1)
 
         btns = QHBoxLayout()
-        btns.setSpacing(8)
-        open_btn = QPushButton("Open on Vinted")
+        btns.setSpacing(10)
+        open_btn = QPushButton("Open listing")
+        open_btn.setObjectName("PrimaryButton")
         open_btn.clicked.connect(self._open)
         copy_btn = QPushButton("Copy link")
         copy_btn.setObjectName("GhostButton")
@@ -118,36 +125,28 @@ class DealCard(QFrame):
 
         root.addLayout(info, 1)
 
-        show_photo = self.load_photos if load_photo is None else load_photo
-        self._loader = PhotoLoader(self)
-        self._loader.loaded.connect(self._on_photo)
-        self._loader.failed.connect(self._on_photo_failed)
-        if show_photo and photo_url:
+        self._loader: Optional[PhotoLoader] = None
+        do_load = self.load_photos if load_photo is None else load_photo
+        if do_load and photo_url:
+            self._loader = PhotoLoader(self)
+            self._loader.loaded.connect(self._on_photo_loaded)
+            self._loader.failed.connect(lambda _m: self.photo.setText("No image"))
             self._loader.fetch(photo_url)
+        elif not photo_url:
+            self.photo.setText("No image")
+
+    def _on_photo_loaded(self, pix: QPixmap) -> None:
+        if pix and not pix.isNull():
+            scaled = pix.scaled(
+                self.PHOTO_W,
+                self.PHOTO_H,
+                Qt.AspectRatioMode.KeepAspectRatioByExpanding,
+                Qt.TransformationMode.SmoothTransformation,
+            )
+            self.photo.setPixmap(scaled)
+            self.photo.setText("")
         else:
-            self._on_photo_failed("")
-        self.destroyed.connect(self._cancel_photo_load)
-
-    def _cancel_photo_load(self, *_args) -> None:
-        self._loader.cancel()
-
-    def closeEvent(self, event: QCloseEvent) -> None:
-        self._loader.cancel()
-        super().closeEvent(event)
-
-    # ----- slots -----
-
-    def _on_photo_failed(self, _msg: str) -> None:
-        self.photo.setText("No photo")
-        self.photo.setStyleSheet("color:#86868b; font-size:11px;")
-
-    def _on_photo(self, pm: QPixmap) -> None:
-        scaled = pm.scaled(
-            QSize(self.PHOTO_W, self.PHOTO_H),
-            Qt.AspectRatioMode.KeepAspectRatio,
-            Qt.TransformationMode.SmoothTransformation,
-        )
-        self.photo.setPixmap(scaled)
+            self.photo.setText("No image")
 
     def _open(self) -> None:
         if self.url:
@@ -155,4 +154,9 @@ class DealCard(QFrame):
 
     def _copy(self) -> None:
         from PyQt6.QtWidgets import QApplication
-        QApplication.clipboard().setText(self.url or "")
+
+        if self.url:
+            QApplication.clipboard().setText(self.url)
+
+    def closeEvent(self, event: QCloseEvent) -> None:
+        super().closeEvent(event)

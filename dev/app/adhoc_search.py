@@ -128,6 +128,12 @@ def run_adhoc_search(cfg: AppConfig, req: AdhocSearchRequest) -> tuple[list[tupl
     platforms = normalize_platforms(req.platforms, default=list(ALL_PLATFORMS))
     global_enabled = set(cfg.sniper_platforms or ALL_PLATFORMS)
     platforms = [p for p in platforms if p in global_enabled]
+    try:
+        from subscription import filter_platforms
+
+        platforms = filter_platforms(platforms)
+    except Exception:
+        pass
     if not platforms:
         return [], ["No platforms enabled in Settings."]
 

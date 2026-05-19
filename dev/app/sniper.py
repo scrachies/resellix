@@ -141,7 +141,17 @@ class Sniper:
     def _active_platforms(self, target: SnipeTarget) -> list[str]:
         global_enabled = set(self.cfg.sniper_platforms or [])
         target_set = set(target.platforms or [PLATFORM_VINTED])
-        return [p for p in (PLATFORM_VINTED, PLATFORM_KLEINANZEIGEN, PLATFORM_EBAY) if p in global_enabled and p in target_set]
+        active = [
+            p
+            for p in (PLATFORM_VINTED, PLATFORM_KLEINANZEIGEN, PLATFORM_EBAY)
+            if p in global_enabled and p in target_set
+        ]
+        try:
+            from subscription import filter_platforms
+
+            return filter_platforms(active)
+        except Exception:
+            return active
 
     def _run(self) -> None:
         self._log("Sniper thread started.")

@@ -41,6 +41,7 @@ import database as db
 from categories import SNIPE_CATEGORIES
 from listing_utils import size_option_label
 from config import AppConfig, load_config, save_config
+from subscription import activate_license, can_add_snipe_target, get_entitlements, require_feature
 from notifier import TelegramNotifier
 from sniper import MatchEvent, Sniper
 from telegram_bot import ResellTelegramBot
@@ -60,7 +61,11 @@ from .pickers import CategoryPickerWidget, PlatformPickerWidget, SizeFilterWidge
 from .platform_filter import PlatformFilterBar
 from .size_filter import SizeFilterBar
 from .styles import STYLESHEET
+from .ui_effects import fade_in_widget, install_button_press_effect, switch_stack_page
 from .widgets import DealCard, StatCard
+
+CONTENT_MARGINS = (32, 28, 32, 28)
+PAGE_SPACING = 20
 from .workers import (
     CheapDealsThread,
     DashboardScanThread,
@@ -108,7 +113,10 @@ class MainWindow(QMainWindow):
         self._build_ui()
         self._wire_signals()
         self._apply_sidebar_update_notice()
+        self._apply_entitlements_ui()
         self._refresh_status_strip()
+        install_button_press_effect(self)
+        fade_in_widget(self.centralWidget(), duration_ms=280)
         self._refresh_targets_table()
         self._rebuild_target_filter_combo()
         self._refresh_dashboard_feed()
@@ -141,7 +149,7 @@ class MainWindow(QMainWindow):
         # ---- sidebar
         sidebar = QFrame()
         sidebar.setObjectName("Sidebar")
-        sidebar.setFixedWidth(220)
+        sidebar.setFixedWidth(252)
         sb = QVBoxLayout(sidebar)
         sb.setContentsMargins(0, 0, 0, 0)
         sb.setSpacing(0)
@@ -149,14 +157,18 @@ class MainWindow(QMainWindow):
         brand_block = QFrame()
         brand_block.setObjectName("BrandBlock")
         bb = QVBoxLayout(brand_block)
-        bb.setContentsMargins(16, 16, 16, 14)
+        bb.setContentsMargins(20, 22, 20, 16)
         bb.setSpacing(2)
         brand_title = QLabel("Resellix")
         brand_title.setObjectName("BrandTitle")
         brand_tag = QLabel("Vinted sniper")
         brand_tag.setObjectName("BrandTagline")
+        self.sidebar_tier = QLabel()
+        self.sidebar_tier.setObjectName("SidebarTier")
+        self.sidebar_tier.setWordWrap(True)
         bb.addWidget(brand_title)
         bb.addWidget(brand_tag)
+        bb.addWidget(self.sidebar_tier)
         sb.addWidget(brand_block)
 
         self.nav_group = QButtonGroup(self)
@@ -235,6 +247,55 @@ class MainWindow(QMainWindow):
         self.nav_dashboard.setChecked(True)
         self.stack.setCurrentIndex(PAGE_DASHBOARD)
 
+    def _apply_entitlements_ui(self) -> None:
+        ent = get_entitlements()
+        if hasattr(self, "sidebar_tier"):
+            self.sidebar_tier.setText(ent.sidebar_label)
+        self.nav_deals.setVisible(ent.cheap_deals)
+        self.nav_trends.setVisible(ent.trends)
+        if hasattr(self, "set_sniper_platforms"):
+            for code, cb in getattr(self.set_sniper_platforms, "_boxes", {}).items():
+                allowed = code in ent.allowed_platforms
+                cb.setEnabled(allowed)
+                if not allowed:
+                    cb.setChecked(False)
+        if hasattr(self, "target_platform_picker"):
+            for code, cb in getattr(self.target_platform_picker, "_boxes", {}).items():
+                allowed = code in ent.allowed_platforms
+                cb.setEnabled(allowed)
+                if not allowed:
+                    cb.setChecked(code == "vinted")
+        if hasattr(self, "set_poll_min"):
+            self.set_poll_min.setMinimum(ent.poll_min_floor)
+            if self.set_poll_min.value() < ent.poll_min_floor:
+                self.set_poll_min.setValue(ent.poll_min_floor)
+        poll_hint = getattr(self, "_poll_hint_label", None)
+        if poll_hint:
+            if ent.instant_telegram:
+                poll_hint.setText(
+                    "Lower = faster alerts (~20–35s). Below ~15s risks Vinted rate limits."
+                )
+            else:
+                poll_hint.setText(
+                    f"Your plan uses slower alerts (min {ent.poll_min_floor}s). "
+                    "Upgrade to Pro/Max for instant Telegram notifications."
+                )
+        if hasattr(self, "license_status_label"):
+            self.license_status_label.setText(
+                f"{ent.display_name}\n{ent.updates_status_line()}"
+            )
+
+    def _activate_license_key(self) -> None:
+        code = self.license_key_input.text().strip()
+        ok, msg = activate_license(code)
+        if ok:
+            self.license_key_input.clear()
+            self.cfg = load_config()
+            self._apply_entitlements_ui()
+            QMessageBox.information(self, "License", msg)
+        else:
+            QMessageBox.warning(self, "License", msg)
+
     def _apply_sidebar_update_notice(self) -> None:
         try:
             from github_update import sidebar_update_notice
@@ -257,20 +318,25 @@ class MainWindow(QMainWindow):
     def _build_status_strip(self) -> QFrame:
         strip = QFrame()
         strip.setObjectName("StatusStrip")
-        strip.setFixedHeight(54)
+        strip.setMinimumHeight(64)
         lay = QHBoxLayout(strip)
-        lay.setContentsMargins(20, 8, 20, 8)
-        lay.setSpacing(18)
+        lay.setContentsMargins(28, 12, 28, 12)
+        lay.setSpacing(20)
 
-        self.status_dot = QLabel("●")
+        self.status_dot = QLabel("")
         self.status_dot.setObjectName("StatusDot")
-        self.status_text = QLabel("idle")
-        self.status_text.setStyleSheet("font-weight: 600;")
-        lay.addWidget(self.status_dot)
-        lay.addWidget(self.status_text)
+        self.status_dot.setFixedSize(10, 10)
+        self.status_text = QLabel("Idle")
+        self.status_text.setStyleSheet("font-weight: 600; font-size: 14px;")
+        status_grp = QHBoxLayout()
+        status_grp.setSpacing(10)
+        status_grp.addWidget(self.status_dot)
+        status_grp.addWidget(self.status_text)
+        lay.addLayout(status_grp)
 
-        sep1 = QLabel("│")
-        sep1.setStyleSheet("color: rgba(255,255,255,0.12);")
+        sep1 = QFrame()
+        sep1.setFrameShape(QFrame.Shape.VLine)
+        sep1.setStyleSheet("color: rgba(15, 23, 42, 0.12); max-width: 1px;")
         lay.addWidget(sep1)
 
         self.status_uptime = QLabel("Uptime  00:00:00")
@@ -282,8 +348,9 @@ class MainWindow(QMainWindow):
 
         lay.addStretch(1)
 
-        self.btn_start = QPushButton("▶ Start sniper")
-        self.btn_pause = QPushButton("⏸ Pause")
+        self.btn_start = QPushButton("Start sniper")
+        self.btn_start.setObjectName("PrimaryButton")
+        self.btn_pause = QPushButton("Pause")
         self.btn_pause.setObjectName("GhostButton")
         self.btn_pause.setEnabled(False)
         self.btn_start.clicked.connect(self._toggle_sniper)
@@ -299,15 +366,20 @@ class MainWindow(QMainWindow):
         page = QWidget()
         page.setObjectName("ContentPage")
         outer = QVBoxLayout(page)
-        outer.setContentsMargins(24, 24, 24, 24)
-        outer.setSpacing(16)
+        outer.setContentsMargins(*CONTENT_MARGINS)
+        outer.setSpacing(PAGE_SPACING)
 
         title = QLabel("Dashboard")
         title.setObjectName("SectionTitle")
         outer.addWidget(title)
+        sub = QLabel("Live sniper stats and your latest matches.")
+        sub.setObjectName("PageSubtitle")
+        outer.addWidget(sub)
 
         grid = QGridLayout()
-        grid.setSpacing(16)
+        grid.setSpacing(18)
+        for col in range(4):
+            grid.setColumnStretch(col, 1)
         self.card_targets = StatCard("Active targets", "0")
         self.card_checked = StatCard("Listings checked", "0")
         self.card_matches = StatCard("Matches today", "0")
@@ -356,12 +428,13 @@ class MainWindow(QMainWindow):
         dash_toolbar.addWidget(lbl_sort)
         dash_toolbar.addWidget(self.dash_sort)
 
-        btn_dash_refresh = QPushButton("↻ Refresh")
+        btn_dash_refresh = QPushButton("Refresh")
         btn_dash_refresh.setObjectName("GhostButton")
         btn_dash_refresh.clicked.connect(self._refresh_dashboard_feed)
         dash_toolbar.addWidget(btn_dash_refresh)
 
         btn_dash_scan = QPushButton("Scan targets now")
+        btn_dash_scan.setObjectName("PrimaryButton")
         btn_dash_scan.clicked.connect(self._scan_all_targets)
         dash_toolbar.addWidget(btn_dash_scan)
         outer.addLayout(dash_toolbar)
@@ -393,8 +466,8 @@ class MainWindow(QMainWindow):
         page = QWidget()
         page.setObjectName("ContentPage")
         outer = QVBoxLayout(page)
-        outer.setContentsMargins(24, 24, 24, 24)
-        outer.setSpacing(16)
+        outer.setContentsMargins(*CONTENT_MARGINS)
+        outer.setSpacing(PAGE_SPACING)
 
         title = QLabel("Snipe Targets")
         title.setObjectName("SectionTitle")
@@ -404,9 +477,9 @@ class MainWindow(QMainWindow):
         add_card = QFrame()
         add_card.setObjectName("Card")
         addl = QGridLayout(add_card)
-        addl.setContentsMargins(16, 14, 16, 14)
-        addl.setHorizontalSpacing(12)
-        addl.setVerticalSpacing(8)
+        addl.setContentsMargins(22, 20, 22, 20)
+        addl.setHorizontalSpacing(16)
+        addl.setVerticalSpacing(12)
 
         addl.addWidget(QLabel("Keyword"), 0, 0)
         self.in_keyword = QLineEdit()
@@ -419,6 +492,7 @@ class MainWindow(QMainWindow):
         self.in_min_price.setDecimals(2)
         self.in_min_price.setSingleStep(1)
         self.in_min_price.setSpecialValueText("—")
+        self.in_min_price.setMinimumWidth(112)
         addl.addWidget(self.in_min_price, 1, 2)
 
         addl.addWidget(QLabel("Max price (€)"), 0, 3)
@@ -427,6 +501,7 @@ class MainWindow(QMainWindow):
         self.in_max_price.setDecimals(2)
         self.in_max_price.setSingleStep(1)
         self.in_max_price.setValue(20)
+        self.in_max_price.setMinimumWidth(112)
         addl.addWidget(self.in_max_price, 1, 3)
 
         addl.addWidget(QLabel("Expected sell (€)"), 0, 4)
@@ -434,6 +509,7 @@ class MainWindow(QMainWindow):
         self.in_expected.setRange(0, 9999)
         self.in_expected.setDecimals(2)
         self.in_expected.setSingleStep(1)
+        self.in_expected.setMinimumWidth(112)
         addl.addWidget(self.in_expected, 1, 4)
 
         addl.addWidget(QLabel("Min profit (€)"), 0, 5)
@@ -441,9 +517,11 @@ class MainWindow(QMainWindow):
         self.in_min_profit.setRange(0, 9999)
         self.in_min_profit.setDecimals(2)
         self.in_min_profit.setSingleStep(1)
+        self.in_min_profit.setMinimumWidth(112)
         addl.addWidget(self.in_min_profit, 1, 5)
 
-        btn_add = QPushButton("➕ Add target")
+        btn_add = QPushButton("Add target")
+        btn_add.setObjectName("PrimaryButton")
         btn_add.clicked.connect(self._add_target)
         addl.addWidget(btn_add, 1, 6)
 
@@ -495,8 +573,11 @@ class MainWindow(QMainWindow):
         h.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         h.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         for col in (2, 3, 4, 5):
-            h.setSectionResizeMode(col, QHeaderView.ResizeMode.ResizeToContents)
+            h.setSectionResizeMode(col, QHeaderView.ResizeMode.Interactive)
+            self.targets_table.setColumnWidth(col, 96)
         h.setSectionResizeMode(6, QHeaderView.ResizeMode.ResizeToContents)
+        self.targets_table.verticalHeader().setDefaultSectionSize(48)
+        self.targets_table.setAlternatingRowColors(True)
         outer.addWidget(self.targets_table, 1)
 
         return page
@@ -507,11 +588,11 @@ class MainWindow(QMainWindow):
         page = QWidget()
         page.setObjectName("ContentPage")
         outer = QVBoxLayout(page)
-        outer.setContentsMargins(24, 24, 24, 24)
-        outer.setSpacing(12)
+        outer.setContentsMargins(*CONTENT_MARGINS)
+        outer.setSpacing(PAGE_SPACING)
 
         head = QHBoxLayout()
-        title = QLabel("Cheap Deals (underpriced only)")
+        title = QLabel("Cheap Deals")
         title.setObjectName("SectionTitle")
         head.addWidget(title)
         head.addStretch(1)
@@ -546,7 +627,7 @@ class MainWindow(QMainWindow):
         outer.addWidget(info)
 
         self.deals_progress = QLabel("")
-        self.deals_progress.setStyleSheet("color:#7c5cff;")
+        self.deals_progress.setObjectName("ProgressLabel")
         outer.addWidget(self.deals_progress)
 
         self.deals_scroll = QScrollArea()
@@ -575,11 +656,11 @@ class MainWindow(QMainWindow):
         page = QWidget()
         page.setObjectName("ContentPage")
         outer = QVBoxLayout(page)
-        outer.setContentsMargins(24, 24, 24, 24)
-        outer.setSpacing(12)
+        outer.setContentsMargins(*CONTENT_MARGINS)
+        outer.setSpacing(PAGE_SPACING)
 
         head = QHBoxLayout()
-        title = QLabel("Vinted steal niches")
+        title = QLabel("Steal niches")
         title.setObjectName("SectionTitle")
         head.addWidget(title)
         head.addStretch(1)
@@ -589,7 +670,7 @@ class MainWindow(QMainWindow):
         outer.addLayout(head)
 
         self.trends_progress = QLabel("")
-        self.trends_progress.setStyleSheet("color:#7c5cff;")
+        self.trends_progress.setObjectName("ProgressLabel")
         outer.addWidget(self.trends_progress)
 
         split = QSplitter(Qt.Orientation.Horizontal)
@@ -620,7 +701,7 @@ class MainWindow(QMainWindow):
         self.trend_drill_title.setObjectName("SectionTitle")
         right_lay.addWidget(self.trend_drill_title)
         self.trend_drill_progress = QLabel("")
-        self.trend_drill_progress.setStyleSheet("color:#7c5cff;")
+        self.trend_drill_progress.setObjectName("ProgressLabel")
         right_lay.addWidget(self.trend_drill_progress)
         self.trend_drill_scroll = QScrollArea()
         self.trend_drill_scroll.setWidgetResizable(True)
@@ -644,12 +725,42 @@ class MainWindow(QMainWindow):
         page = QWidget()
         page.setObjectName("ContentPage")
         outer = QVBoxLayout(page)
-        outer.setContentsMargins(24, 24, 24, 24)
-        outer.setSpacing(14)
+        outer.setContentsMargins(*CONTENT_MARGINS)
+        outer.setSpacing(PAGE_SPACING)
 
         title = QLabel("Settings")
         title.setObjectName("SectionTitle")
         outer.addWidget(title)
+
+        lic_card = QFrame()
+        lic_card.setObjectName("Card")
+        lic_lay = QVBoxLayout(lic_card)
+        lic_lay.setContentsMargins(20, 16, 20, 16)
+        lic_lay.setSpacing(8)
+        lic_title = QLabel("Subscription & license")
+        lic_title.setObjectName("SectionTitle")
+        lic_lay.addWidget(lic_title)
+        self.license_status_label = QLabel()
+        self.license_status_label.setWordWrap(True)
+        self.license_status_label.setObjectName("HintLabel")
+        lic_lay.addWidget(self.license_status_label)
+        lic_row = QHBoxLayout()
+        self.license_key_input = QLineEdit()
+        self.license_key_input.setPlaceholderText("Paste license key (RX-PLUS-…, RX-PRO-…, RX-MAX-…)")
+        btn_lic = QPushButton("Activate")
+        btn_lic.setObjectName("PrimaryButton")
+        btn_lic.clicked.connect(self._activate_license_key)
+        lic_row.addWidget(self.license_key_input, 1)
+        lic_row.addWidget(btn_lic)
+        lic_lay.addLayout(lic_row)
+        plans = QLabel(
+            "Paste the license key you received from Thomas. "
+            "Plans: Plus, Pro, Max, and optional Updates extension."
+        )
+        plans.setWordWrap(True)
+        plans.setObjectName("HintLabel")
+        lic_lay.addWidget(plans)
+        outer.addWidget(lic_card)
 
         form = QFrame()
         form.setObjectName("Card")
@@ -664,7 +775,7 @@ class MainWindow(QMainWindow):
             "auto session via HEAD request — optional _vinted_de_session override."
         )
         api_hint.setWordWrap(True)
-        api_hint.setStyleSheet("color:#9aa3b2;")
+        api_hint.setObjectName("HintLabel")
         fl.addWidget(api_hint, row, 0, 1, 4)
         row += 1
 
@@ -713,11 +824,13 @@ class MainWindow(QMainWindow):
         poll_hint = QLabel("Lower = faster alerts (~20–35s). Below ~15s risks Vinted rate limits.")
         poll_hint.setObjectName("HintLabel")
         poll_hint.setWordWrap(True)
+        self._poll_hint_label = poll_hint
         fl.addWidget(poll_hint, row, 3)
         row += 1
 
         sep_plat = QLabel("Sniper platforms (global)")
-        sep_plat.setStyleSheet("color:#9aa3b2; padding-top:8px;")
+        sep_plat.setObjectName("HintLabel")
+        sep_plat.setStyleSheet("padding-top: 10px; font-weight: 600;")
         fl.addWidget(sep_plat, row, 0, 1, 4)
         row += 1
 
@@ -746,7 +859,8 @@ class MainWindow(QMainWindow):
         row += 1
 
         sep = QLabel("Telegram (optional)")
-        sep.setStyleSheet("color:#9aa3b2; padding-top:8px;")
+        sep.setObjectName("HintLabel")
+        sep.setStyleSheet("padding-top: 10px; font-weight: 600;")
         fl.addWidget(sep, row, 0, 1, 4)
         row += 1
 
@@ -791,7 +905,7 @@ class MainWindow(QMainWindow):
         outer.addLayout(btns)
 
         help_lbl = QLabel(
-            "Backend: <code>pip install pyVinted</code> (herissondev/vinted-api-wrapper)<br>"
+            "Backend: bundled <code>dev/app/vendor/pyVinted</code> (herissondev wrapper)<br>"
             "<code>vinted.items.search('https://www.vinted.de/catalog?search_text=nike&amp;price_to=20', 20, 1)</code><br><br>"
             "If search fails, paste <code>_vinted_de_session</code> from Chrome → Application → Cookies."
         )
@@ -808,9 +922,10 @@ class MainWindow(QMainWindow):
 
     def _build_page_logs(self) -> QWidget:
         page = QWidget()
+        page.setObjectName("ContentPage")
         outer = QVBoxLayout(page)
-        outer.setContentsMargins(24, 24, 24, 24)
-        outer.setSpacing(12)
+        outer.setContentsMargins(*CONTENT_MARGINS)
+        outer.setSpacing(PAGE_SPACING)
 
         head = QHBoxLayout()
         title = QLabel("Logs")
@@ -844,7 +959,7 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------
 
     def _switch_page(self, idx: int) -> None:
-        self.stack.setCurrentIndex(idx)
+        switch_stack_page(self.stack, idx)
 
     # ------------------------------------------------------------------
     # Status strip / dashboard refresh
@@ -865,16 +980,18 @@ class MainWindow(QMainWindow):
 
         if not self.sniper.running:
             self.status_dot.setObjectName("StatusDotError")
-            self.status_text.setText("sniper stopped")
-            self.card_state.set_value("stopped")
+            self.status_text.setText("Sniper stopped")
+            self.card_state.set_value("Stopped")
         elif self.sniper.paused:
             self.status_dot.setObjectName("StatusDotPaused")
-            self.status_text.setText("paused")
-            self.card_state.set_value("paused")
+            self.status_text.setText("Paused")
+            self.card_state.set_value("Paused")
         else:
             self.status_dot.setObjectName("StatusDot")
-            self.status_text.setText("scanning Vinted")
-            self.card_state.set_value("running")
+            self.status_text.setText("Scanning")
+            self.card_state.set_value("Running")
+        self.status_dot.style().unpolish(self.status_dot)
+        self.status_dot.style().polish(self.status_dot)
         # Re-apply stylesheet to reflect object name change
         self.status_dot.style().unpolish(self.status_dot)
         self.status_dot.style().polish(self.status_dot)
@@ -916,6 +1033,10 @@ class MainWindow(QMainWindow):
         keyword = self.in_keyword.text().strip()
         if not keyword:
             QMessageBox.information(self, "Add target", "Enter a keyword first.")
+            return
+        ok, msg = can_add_snipe_target(len(self.targets.list()))
+        if not ok:
+            QMessageBox.warning(self, "Snipe limit", msg)
             return
         size_mode = self.target_size_filter.size_mode()
         size_keys = sorted(self.target_size_filter.selected_keys())
@@ -1269,6 +1390,10 @@ class MainWindow(QMainWindow):
             self.deals_layout.insertWidget(self.deals_layout.count() - 1, card)
 
     def _scan_cheap_deals(self) -> None:
+        ok, msg = require_feature("cheap_deals")
+        if not ok:
+            QMessageBox.information(self, "Resellix Pro", msg)
+            return
         if not self.cfg.vinted_ready:
             QMessageBox.warning(
                 self,
@@ -1303,13 +1428,17 @@ class MainWindow(QMainWindow):
         self.deals_progress.setText(f"Done — {count} underpriced listing(s).")
 
     def _on_cheap_failed(self, msg: str) -> None:
-        self.deals_progress.setText(f"❌ {msg}")
+        self.deals_progress.setText(f"Failed: {msg}")
 
     # ------------------------------------------------------------------
     # Trends
     # ------------------------------------------------------------------
 
     def _scan_trends(self) -> None:
+        ok, msg = require_feature("trends")
+        if not ok:
+            QMessageBox.information(self, "Resellix Pro", msg)
+            return
         if self._trend_thread and self._trend_thread.isRunning():
             return
         self.btn_scan_trends.setEnabled(False)
@@ -1346,7 +1475,7 @@ class MainWindow(QMainWindow):
             self._drill_trend(results[0].name)
 
     def _on_trends_failed(self, msg: str) -> None:
-        self.trends_progress.setText(f"❌ {msg}")
+        self.trends_progress.setText(f"Failed: {msg}")
 
     def _on_trend_row_clicked(self, row: int, _col: int) -> None:
         item = self.trends_table.item(row, 1)
@@ -1402,7 +1531,7 @@ class MainWindow(QMainWindow):
         self.trend_drill_progress.setText(f"Done — {count} underpriced listing(s).")
 
     def _on_trend_drill_failed(self, msg: str) -> None:
-        self.trend_drill_progress.setText(f"❌ {msg}")
+        self.trend_drill_progress.setText(f"Failed: {msg}")
 
     # ------------------------------------------------------------------
     # Settings
@@ -1434,13 +1563,19 @@ class MainWindow(QMainWindow):
         return False
 
     def _save_settings(self) -> None:
-        plat_csv = ",".join(self.set_sniper_platforms.selected_platforms())
+        from subscription import clamp_poll_intervals, filter_platforms
+
+        plat = filter_platforms(self.set_sniper_platforms.selected_platforms())
+        poll_min, poll_max = clamp_poll_intervals(
+            self.set_poll_min.value(), self.set_poll_max.value()
+        )
+        plat_csv = ",".join(plat) if plat else "vinted"
         updates = {
             "VINTED_SESSION_COOKIE": self.set_cookie.text().strip(),
             "VINTED_HOST": self.set_host.currentText().strip(),
             "VINTED_LOCALE": self.set_locale.text().strip(),
-            "POLL_MIN_SECONDS": str(self.set_poll_min.value()),
-            "POLL_MAX_SECONDS": str(self.set_poll_max.value()),
+            "POLL_MIN_SECONDS": str(poll_min),
+            "POLL_MAX_SECONDS": str(poll_max),
             "KLEINANZEIGEN_API_URL": self.set_klein_api.text().strip(),
             "EBAY_HOST": self.set_ebay_host.text().strip(),
             "SNIPER_PLATFORMS": plat_csv,
@@ -1452,6 +1587,7 @@ class MainWindow(QMainWindow):
         self.cfg = load_config()
         self.sniper.refresh_config(self.cfg)
         self.notifier.refresh(self.cfg)
+        self._apply_entitlements_ui()
         self._append_log("Settings saved.")
         QMessageBox.information(self, "Saved", "Settings written to .env.")
 

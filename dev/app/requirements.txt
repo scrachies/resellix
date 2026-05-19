@@ -7,4 +7,4 @@ lxml>=5.0.0
 PyQt6>=6.6.0
 PyQt6-Qt6>=6.6.0
 PyQt6-sip>=13.6
-pyvinted>=0.5.3
+# pyVinted: bundled in vendor/pyVinted (not on PyPI as pyvinted)

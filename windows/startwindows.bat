@@ -31,7 +31,6 @@ if not exist "%APP%\.venv\Scripts\python.exe" (
     set "PYEXE=%APP%\.venv\Scripts\python.exe"
     "%PYEXE%" -m pip install --upgrade pip -q
     "%PYEXE%" -m pip install -r "%APP%\requirements.txt"
-    "%PYEXE%" -m pip install pyvinted>=0.5.3 --upgrade -q
     if exist "%APP%\requirements-kleinanzeigen.txt" (
         "%PYEXE%" -m pip install -r "%APP%\requirements-kleinanzeigen.txt" -q
     )
