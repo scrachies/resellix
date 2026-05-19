@@ -1,0 +1,25 @@
+# User secrets & data (keep at install root — see IMPORTANT-README)
+../.env
+../targets.json
+
+# Dev runtime
+.runtime/
+*.log
+resell.db
+resell.db-shm
+resell.db-wal
+startup_error.log
+trends.txt
+
+__pycache__/
+*.pyc
+.pytest_cache/
+
+.venv/
+app/.venv/
+
+.DS_Store
+Thumbs.db
+
+.idea/
+.vscode/

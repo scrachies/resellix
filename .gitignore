@@ -1,0 +1,21 @@
+# Python venv (never commit)
+**/.venv/
+venv/
+
+# User data
+dev/.env
+dev/targets.json
+dev/resell.db
+dev/resell.db-*
+dev/*.log
+dev/.runtime/
+dev/.update_state.json
+dev/startup_error.log
+
+# Stray duplicate folder at root — use dev/app only
+/app/
+
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db

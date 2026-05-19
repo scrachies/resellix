@@ -1,0 +1,3 @@
+# Optional - not required for the dashboard to start
+cloudscraper>=1.2.71
+vinted-scraper>=3.0.0
