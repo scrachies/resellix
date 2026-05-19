@@ -167,14 +167,10 @@ class ResellTelegramBot:
         self.app: Optional[Application] = None
 
     def _authorized(self, update: Update) -> bool:
-        cid = (self.cfg.telegram_chat_id or "").strip()
-        if not cid or not update.effective_chat:
+        allowed = self.cfg.telegram_chat_id_list()
+        if not allowed or not update.effective_chat:
             return True
-        try:
-            expected = int(cid)
-        except ValueError:
-            return str(update.effective_chat.id) == cid
-        return update.effective_chat.id == expected
+        return update.effective_chat.id in allowed
 
     # ------------------------------------------------------------------
 

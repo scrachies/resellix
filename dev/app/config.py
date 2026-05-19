@@ -48,7 +48,23 @@ class AppConfig:
 
     @property
     def telegram_enabled(self) -> bool:
-        return bool(self.telegram_bot_token and self.telegram_chat_id)
+        return bool(self.telegram_bot_token and self.telegram_chat_id_list())
+
+    def telegram_chat_id_list(self) -> list[int]:
+        """One or more chats (private or group), comma-separated in TELEGRAM_CHAT_ID."""
+        raw = (self.telegram_chat_id or "").strip()
+        if not raw:
+            return []
+        out: list[int] = []
+        for part in raw.split(","):
+            part = part.strip()
+            if not part:
+                continue
+            try:
+                out.append(int(part))
+            except ValueError:
+                continue
+        return out
 
     @property
     def vinted_ready(self) -> bool:

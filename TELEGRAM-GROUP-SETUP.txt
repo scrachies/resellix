@@ -1,0 +1,37 @@
+RESELLIX — Telegram GROUP setup (Thomas)
+========================================
+
+Your bot token is already in dev/.env. Switch alerts + commands to a group:
+
+STEP 1 — BotFather (required for groups)
+  Open @BotFather → send:  /setprivacy
+  Choose your Resellix bot →  Disable
+  (So the bot can read /commands in the group.)
+
+STEP 2 — Create group
+  - New Telegram group (e.g. "Resellix")
+  - Add your friend
+  - Add your bot (search its @username from BotFather)
+
+STEP 3 — Wake the bot
+  In the group chat send:  /start
+
+STEP 4 — Save group chat id (on your PC)
+  Open PowerShell in the project folder:
+
+    cd dev\app
+    .venv\Scripts\python.exe scripts\telegram_group_setup.py
+
+  Follow prompts. It writes TELEGRAM_CHAT_ID to dev/.env
+  (Group ids look like -1001234567890)
+
+STEP 5 — Restart Resellix
+  Close the app and run startwindows.bat again.
+  In the group: /start  →  should reply with help.
+  Deal alerts go to the group.
+
+Optional: keep YOUR private chat too — script asks if you want
+  group + private (comma-separated ids).
+
+Multiple chats in .env example:
+  TELEGRAM_CHAT_ID=-1001234567890,7917323723

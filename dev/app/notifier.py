@@ -80,37 +80,60 @@ def _api_base(cfg: AppConfig) -> str:
     return f"https://api.telegram.org/bot{cfg.telegram_bot_token}"
 
 
+def _chat_ids(cfg: AppConfig) -> list[int]:
+    ids = cfg.telegram_chat_id_list()
+    if ids:
+        return ids
+    raw = (cfg.telegram_chat_id or "").strip()
+    if not raw:
+        return []
+    try:
+        return [int(raw)]
+    except ValueError:
+        return []
+
+
 def _send_message_sync(cfg: AppConfig, text: str) -> None:
     """Fallback when photo download fails."""
-    resp = requests.post(
-        f"{_api_base(cfg)}/sendMessage",
-        json={
-            "chat_id": cfg.telegram_chat_id,
-            "text": text,
-            "parse_mode": "HTML",
-            "disable_web_page_preview": True,
-        },
-        timeout=15,
-    )
-    if not resp.ok:
-        raise RuntimeError(f"sendMessage {resp.status_code}: {resp.text[:200]}")
-    resp.raise_for_status()
+    last_err: Optional[Exception] = None
+    for chat_id in _chat_ids(cfg):
+        resp = requests.post(
+            f"{_api_base(cfg)}/sendMessage",
+            json={
+                "chat_id": chat_id,
+                "text": text,
+                "parse_mode": "HTML",
+                "disable_web_page_preview": True,
+            },
+            timeout=15,
+        )
+        if not resp.ok:
+            last_err = RuntimeError(f"sendMessage {resp.status_code}: {resp.text[:200]}")
+            continue
+        resp.raise_for_status()
+    if last_err and len(_chat_ids(cfg)) == 1:
+        raise last_err
 
 
 def _send_photo_sync(cfg: AppConfig, photo_bytes: bytes, caption: str) -> None:
-    resp = requests.post(
-        f"{_api_base(cfg)}/sendPhoto",
-        data={
-            "chat_id": cfg.telegram_chat_id,
-            "caption": caption[:1024],
-            "parse_mode": "HTML",
-        },
-        files={"photo": ("listing.jpg", photo_bytes)},
-        timeout=30,
-    )
-    if not resp.ok:
-        raise RuntimeError(f"sendPhoto {resp.status_code}: {resp.text[:200]}")
-    resp.raise_for_status()
+    last_err: Optional[Exception] = None
+    for chat_id in _chat_ids(cfg):
+        resp = requests.post(
+            f"{_api_base(cfg)}/sendPhoto",
+            data={
+                "chat_id": chat_id,
+                "caption": caption[:1024],
+                "parse_mode": "HTML",
+            },
+            files={"photo": ("listing.jpg", photo_bytes)},
+            timeout=30,
+        )
+        if not resp.ok:
+            last_err = RuntimeError(f"sendPhoto {resp.status_code}: {resp.text[:200]}")
+            continue
+        resp.raise_for_status()
+    if last_err and len(_chat_ids(cfg)) == 1:
+        raise last_err
 
 
 def _download_photo(url: str) -> Optional[bytes]:
