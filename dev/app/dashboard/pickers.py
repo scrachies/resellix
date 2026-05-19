@@ -77,7 +77,7 @@ class _ChipGrid(QWidget):
         head.addStretch(1)
         btn_clear = QPushButton("Clear")
         btn_clear.setObjectName("GhostButton")
-        btn_clear.setFixedHeight(26)
+        btn_clear.setFixedHeight(34)
         btn_clear.clicked.connect(self._clear)
         head.addWidget(btn_clear)
         root.addLayout(head)
@@ -85,13 +85,15 @@ class _ChipGrid(QWidget):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
-        scroll.setMaximumHeight(88)
+        scroll.setMaximumHeight(160)
+        scroll.setObjectName("GlassScroll")
         host = QWidget()
         grid = QGridLayout(host)
-        grid.setContentsMargins(0, 0, 0, 0)
-        grid.setSpacing(4)
+        grid.setContentsMargins(4, 4, 4, 4)
+        grid.setSpacing(8)
         for i, (key, label) in enumerate(options):
             cb = QCheckBox(label)
+            cb.setObjectName("ChipCheck")
             cb.stateChanged.connect(self._changed)
             self._boxes[key] = cb
             grid.addWidget(cb, i // columns, i % columns)
@@ -204,6 +206,7 @@ class PlatformPickerWidget(QWidget):
         root.addWidget(self._summary)
         for p in ALL_PLATFORMS:
             cb = QCheckBox(PLATFORM_LABELS[p])
+            cb.setObjectName("ChipCheck")
             cb.setChecked(True)
             cb.stateChanged.connect(self._changed)
             self._boxes[p] = cb

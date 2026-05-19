@@ -4,9 +4,10 @@ from __future__ import annotations
 import webbrowser
 from typing import Optional
 
-from PyQt6.QtCore import Qt, QSize
-from PyQt6.QtGui import QCloseEvent, QFont
+from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QCloseEvent, QFont, QPixmap
 from PyQt6.QtWidgets import (
+    QApplication,
     QFrame,
     QHBoxLayout,
     QLabel,
@@ -17,21 +18,22 @@ from PyQt6.QtWidgets import (
 )
 
 from .photo_loader import PhotoLoader
+from .ui_components import GlassCard, drop_shadow
 
 
-class StatCard(QFrame):
-    """KPI card with roomy typography."""
+class StatCard(GlassCard):
+    """KPI card with shadow."""
 
     def __init__(self, title: str, value: str = "0", parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
         self.setObjectName("StatCard")
-        self.setMinimumWidth(200)
-        self.setMinimumHeight(112)
+        self.setMinimumWidth(180)
+        self.setMinimumHeight(118)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(22, 18, 22, 18)
-        layout.setSpacing(8)
+        layout.setContentsMargins(24, 20, 24, 20)
+        layout.setSpacing(10)
 
         self.title_lbl = QLabel(title.upper())
         self.title_lbl.setObjectName("CardTitle")
@@ -39,7 +41,6 @@ class StatCard(QFrame):
 
         self.value_lbl = QLabel(value)
         self.value_lbl.setObjectName("CardValue")
-        self.value_lbl.setWordWrap(False)
         self.value_lbl.setMinimumHeight(40)
         font = QFont()
         font.setPointSize(26)
@@ -52,8 +53,8 @@ class StatCard(QFrame):
         self.value_lbl.setText(value)
 
 
-class DealCard(QFrame):
-    """Listing preview card: photo on the left, info on the right."""
+class DealCard(GlassCard):
+    """Listing preview card."""
 
     PHOTO_W = 136
     PHOTO_H = 136
@@ -73,11 +74,12 @@ class DealCard(QFrame):
         super().__init__(parent)
         self.setObjectName("DealCard")
         self.url = url
+        drop_shadow(self, blur=24, offset_y=5, alpha=40)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        self.setMinimumHeight(self.PHOTO_H + 32)
+        self.setMinimumHeight(self.PHOTO_H + 36)
 
         root = QHBoxLayout(self)
-        root.setContentsMargins(16, 16, 16, 16)
+        root.setContentsMargins(18, 18, 18, 18)
         root.setSpacing(16)
 
         self.photo = QLabel("Loading")
@@ -87,7 +89,7 @@ class DealCard(QFrame):
         root.addWidget(self.photo)
 
         info = QVBoxLayout()
-        info.setSpacing(6)
+        info.setSpacing(8)
 
         title_lbl = QLabel(title)
         title_lbl.setObjectName("DealTitle")
@@ -153,8 +155,6 @@ class DealCard(QFrame):
             webbrowser.open(self.url)
 
     def _copy(self) -> None:
-        from PyQt6.QtWidgets import QApplication
-
         if self.url:
             QApplication.clipboard().setText(self.url)
 

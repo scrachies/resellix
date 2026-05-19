@@ -61,11 +61,16 @@ from .pickers import CategoryPickerWidget, PlatformPickerWidget, SizeFilterWidge
 from .platform_filter import PlatformFilterBar
 from .size_filter import SizeFilterBar
 from .styles import STYLESHEET
+from .ui_components import (
+    GlassCard,
+    GlassScroll,
+    drop_shadow,
+    form_label,
+    page_header,
+    section_title,
+)
 from .ui_effects import fade_in_widget, install_button_press_effect, switch_stack_page
 from .widgets import DealCard, StatCard
-
-CONTENT_MARGINS = (32, 28, 32, 28)
-PAGE_SPACING = 20
 from .workers import (
     CheapDealsThread,
     DashboardScanThread,
@@ -75,6 +80,8 @@ from .workers import (
     TrendScanThread,
 )
 
+CONTENT_MARGINS = (32, 28, 32, 28)
+PAGE_SPACING = 18
 
 log = logging.getLogger("dashboard.app")
 
@@ -372,6 +379,7 @@ class MainWindow(QMainWindow):
         lay.addWidget(self.btn_start)
         lay.addWidget(self.btn_pause)
 
+        drop_shadow(strip, blur=20, offset_y=4, alpha=35)
         return strip
 
     # ----- dashboard page -----
@@ -383,12 +391,9 @@ class MainWindow(QMainWindow):
         outer.setContentsMargins(*CONTENT_MARGINS)
         outer.setSpacing(PAGE_SPACING)
 
-        title = QLabel("Dashboard")
-        title.setObjectName("SectionTitle")
-        outer.addWidget(title)
-        sub = QLabel("Live sniper stats and your latest matches.")
-        sub.setObjectName("PageSubtitle")
-        outer.addWidget(sub)
+        outer.addWidget(
+            page_header("Dashboard", "Live sniper stats and your latest matches.")
+        )
 
         grid = QGridLayout()
         grid.setSpacing(18)
@@ -404,54 +409,51 @@ class MainWindow(QMainWindow):
         grid.addWidget(self.card_state, 0, 3)
         outer.addLayout(grid)
 
-        dash_toolbar = QHBoxLayout()
-        dash_lbl = QLabel("Recent matches")
-        dash_lbl.setObjectName("SectionTitle")
-        dash_toolbar.addWidget(dash_lbl)
-        dash_toolbar.addStretch(1)
+        filter_card = GlassCard()
+        fc = QVBoxLayout(filter_card)
+        fc.setContentsMargins(20, 18, 20, 18)
+        fc.setSpacing(14)
+        fc.addWidget(section_title("Recent matches"))
 
+        row1 = QHBoxLayout()
+        row1.setSpacing(12)
         self.dash_platform_filter = PlatformFilterBar()
         self.dash_platform_filter.selection_changed.connect(self._render_dashboard_feed)
-        lbl_plat = QLabel("Source")
-        lbl_plat.setObjectName("ToolbarLabel")
-        dash_toolbar.addWidget(lbl_plat)
-        dash_toolbar.addWidget(self.dash_platform_filter)
-
+        row1.addWidget(form_label("Source"))
+        row1.addWidget(self.dash_platform_filter, 1)
         self.dash_target_filter = QComboBox()
-        self.dash_target_filter.setMinimumWidth(160)
+        self.dash_target_filter.setMinimumWidth(180)
         self.dash_target_filter.addItem("All targets")
-        self.dash_target_filter.currentTextChanged.connect(lambda _: self._render_dashboard_feed())
-        lbl_tgt = QLabel("Target")
-        lbl_tgt.setObjectName("ToolbarLabel")
-        dash_toolbar.addWidget(lbl_tgt)
-        dash_toolbar.addWidget(self.dash_target_filter)
+        self.dash_target_filter.currentTextChanged.connect(
+            lambda _: self._render_dashboard_feed()
+        )
+        row1.addWidget(form_label("Target"))
+        row1.addWidget(self.dash_target_filter)
+        fc.addLayout(row1)
 
+        row2 = QHBoxLayout()
+        row2.setSpacing(12)
         self.dash_size_filter = SizeFilterBar()
         self.dash_size_filter.selection_changed.connect(self._render_dashboard_feed)
-        lbl_sz = QLabel("Size")
-        lbl_sz.setObjectName("ToolbarLabel")
-        dash_toolbar.addWidget(lbl_sz)
-        dash_toolbar.addWidget(self.dash_size_filter)
-
+        row2.addWidget(form_label("Size"))
+        row2.addWidget(self.dash_size_filter, 1)
         self.dash_sort = QComboBox()
+        self.dash_sort.setMinimumWidth(160)
         for _key, label in SORT_LABELS:
             self.dash_sort.addItem(label, _key)
         self.dash_sort.currentIndexChanged.connect(lambda _: self._render_dashboard_feed())
-        lbl_sort = QLabel("Sort")
-        lbl_sort.setObjectName("ToolbarLabel")
-        dash_toolbar.addWidget(lbl_sort)
-        dash_toolbar.addWidget(self.dash_sort)
-
+        row2.addWidget(form_label("Sort"))
+        row2.addWidget(self.dash_sort)
         btn_dash_refresh = QPushButton("Refresh")
         btn_dash_refresh.setObjectName("GhostButton")
         btn_dash_refresh.clicked.connect(self._refresh_dashboard_feed)
-        dash_toolbar.addWidget(btn_dash_refresh)
-
-        btn_dash_scan = QPushButton("Scan targets now")
+        btn_dash_scan = QPushButton("Scan now")
         btn_dash_scan.setObjectName("PrimaryButton")
         btn_dash_scan.clicked.connect(self._scan_all_targets)
-        dash_toolbar.addWidget(btn_dash_scan)
-        outer.addLayout(dash_toolbar)
+        row2.addWidget(btn_dash_refresh)
+        row2.addWidget(btn_dash_scan)
+        fc.addLayout(row2)
+        outer.addWidget(filter_card)
 
         hint = QLabel(
             "Filter by target and size. Est. resale = keyword + product type + Vinted median."
@@ -483,99 +485,118 @@ class MainWindow(QMainWindow):
         outer.setContentsMargins(*CONTENT_MARGINS)
         outer.setSpacing(PAGE_SPACING)
 
-        title = QLabel("Snipe Targets")
-        title.setObjectName("SectionTitle")
-        outer.addWidget(title)
+        outer.addWidget(
+            page_header(
+                "Snipe Targets",
+                "Scroll the form for all options. Your active targets stay visible below.",
+            )
+        )
 
-        # ----- add row
-        add_card = QFrame()
-        add_card.setObjectName("Card")
-        addl = QGridLayout(add_card)
-        addl.setContentsMargins(22, 20, 22, 20)
-        addl.setHorizontalSpacing(16)
-        addl.setVerticalSpacing(12)
+        form_scroll = GlassScroll()
+        form_scroll.setMinimumHeight(280)
+        form_scroll.setMaximumHeight(420)
+        form_host = QWidget()
+        form_outer = QVBoxLayout(form_host)
+        form_outer.setContentsMargins(2, 2, 10, 2)
+        form_outer.setSpacing(0)
 
-        addl.addWidget(QLabel("Keyword"), 0, 0)
+        add_card = GlassCard()
+        addl = QVBoxLayout(add_card)
+        addl.setContentsMargins(26, 24, 26, 24)
+        addl.setSpacing(22)
+
+        basics = QGridLayout()
+        basics.setHorizontalSpacing(16)
+        basics.setVerticalSpacing(10)
+        basics.addWidget(form_label("Keyword"), 0, 0, 1, 2)
         self.in_keyword = QLineEdit()
         self.in_keyword.setPlaceholderText("e.g. ralph lauren pullover")
-        addl.addWidget(self.in_keyword, 1, 0, 1, 2)
+        self.in_keyword.setMinimumHeight(42)
+        basics.addWidget(self.in_keyword, 1, 0, 1, 2)
+        addl.addLayout(basics)
 
-        addl.addWidget(QLabel("Min price (€)"), 0, 2)
-        self.in_min_price = QDoubleSpinBox()
-        self.in_min_price.setRange(0, 9999)
-        self.in_min_price.setDecimals(2)
-        self.in_min_price.setSingleStep(1)
-        self.in_min_price.setSpecialValueText("—")
-        self.in_min_price.setMinimumWidth(112)
-        addl.addWidget(self.in_min_price, 1, 2)
+        addl.addWidget(section_title("Price and profit"))
+        price_row = QGridLayout()
+        price_row.setHorizontalSpacing(14)
+        price_row.setVerticalSpacing(10)
+        for col, (label, attr) in enumerate(
+            [
+                ("Min price (€)", "in_min_price"),
+                ("Max price (€)", "in_max_price"),
+                ("Expected sell (€)", "in_expected"),
+                ("Min profit (€)", "in_min_profit"),
+            ]
+        ):
+            price_row.addWidget(form_label(label), 0, col)
+            spin = QDoubleSpinBox()
+            spin.setRange(0, 9999)
+            spin.setDecimals(2)
+            spin.setSingleStep(1)
+            spin.setMinimumHeight(42)
+            spin.setMinimumWidth(130)
+            if attr == "in_min_price":
+                spin.setSpecialValueText("—")
+                self.in_min_price = spin
+            elif attr == "in_max_price":
+                spin.setValue(20)
+                self.in_max_price = spin
+            elif attr == "in_expected":
+                self.in_expected = spin
+            else:
+                self.in_min_profit = spin
+            price_row.addWidget(spin, 1, col)
+        addl.addLayout(price_row)
 
-        addl.addWidget(QLabel("Max price (€)"), 0, 3)
-        self.in_max_price = QDoubleSpinBox()
-        self.in_max_price.setRange(0, 9999)
-        self.in_max_price.setDecimals(2)
-        self.in_max_price.setSingleStep(1)
-        self.in_max_price.setValue(20)
-        self.in_max_price.setMinimumWidth(112)
-        addl.addWidget(self.in_max_price, 1, 3)
-
-        addl.addWidget(QLabel("Expected sell (€)"), 0, 4)
-        self.in_expected = QDoubleSpinBox()
-        self.in_expected.setRange(0, 9999)
-        self.in_expected.setDecimals(2)
-        self.in_expected.setSingleStep(1)
-        self.in_expected.setMinimumWidth(112)
-        addl.addWidget(self.in_expected, 1, 4)
-
-        addl.addWidget(QLabel("Min profit (€)"), 0, 5)
-        self.in_min_profit = QDoubleSpinBox()
-        self.in_min_profit.setRange(0, 9999)
-        self.in_min_profit.setDecimals(2)
-        self.in_min_profit.setSingleStep(1)
-        self.in_min_profit.setMinimumWidth(112)
-        addl.addWidget(self.in_min_profit, 1, 5)
-
-        btn_add = QPushButton("Add target")
-        btn_add.setObjectName("PrimaryButton")
-        btn_add.clicked.connect(self._add_target)
-        addl.addWidget(btn_add, 1, 6)
-
-        addl.addWidget(QLabel("Colors"), 2, 0)
+        addl.addWidget(section_title("Text filters"))
+        text_row = QGridLayout()
+        text_row.setHorizontalSpacing(16)
+        text_row.addWidget(form_label("Colors"), 0, 0)
         self.in_colors = QLineEdit()
         self.in_colors.setPlaceholderText("navy, black (optional)")
-        addl.addWidget(self.in_colors, 2, 1, 1, 2)
-
-        addl.addWidget(QLabel("Exclude words"), 2, 3)
+        self.in_colors.setMinimumHeight(42)
+        text_row.addWidget(self.in_colors, 1, 0)
+        text_row.addWidget(form_label("Exclude words"), 0, 1)
         self.in_exclude = QLineEdit()
         self.in_exclude.setPlaceholderText("baby, enfant, damaged")
-        addl.addWidget(self.in_exclude, 2, 4, 1, 2)
+        self.in_exclude.setMinimumHeight(42)
+        text_row.addWidget(self.in_exclude, 1, 1)
+        addl.addLayout(text_row)
 
-        plat_lbl = QLabel("Snipe on")
-        plat_lbl.setObjectName("ToolbarLabel")
-        addl.addWidget(plat_lbl, 3, 0)
+        addl.addWidget(section_title("Platforms"))
         self.target_platform_picker = PlatformPickerWidget()
-        addl.addWidget(self.target_platform_picker, 3, 1, 1, 5)
+        addl.addWidget(self.target_platform_picker)
 
-        cat_lbl = QLabel("Clothing type")
-        cat_lbl.setObjectName("ToolbarLabel")
-        addl.addWidget(cat_lbl, 4, 0)
+        addl.addWidget(section_title("Clothing type"))
         self.target_category_picker = CategoryPickerWidget()
-        addl.addWidget(self.target_category_picker, 4, 1, 1, 5)
+        addl.addWidget(self.target_category_picker)
 
-        sz_lbl = QLabel("Sizes")
-        sz_lbl.setObjectName("ToolbarLabel")
-        addl.addWidget(sz_lbl, 5, 0)
+        addl.addWidget(section_title("Sizes"))
         self.target_size_filter = SizeFilterWidget()
-        addl.addWidget(self.target_size_filter, 5, 1, 1, 5)
+        addl.addWidget(self.target_size_filter)
 
         target_help = QLabel(
-            "Pick platforms per target (e.g. clothes on Vinted, tech on eBay + Kleinanzeigen)."
+            "Tip: Vinted for clothes, eBay and Kleinanzeigen for tech and local deals."
         )
         target_help.setObjectName("HintLabel")
         target_help.setWordWrap(True)
-        addl.addWidget(target_help, 6, 0, 1, 7)
-        outer.addWidget(add_card)
+        addl.addWidget(target_help)
 
-        # ----- table
+        btn_add = QPushButton("Add snipe target")
+        btn_add.setObjectName("PrimaryButton")
+        btn_add.setMinimumHeight(48)
+        btn_add.clicked.connect(self._add_target)
+        addl.addWidget(btn_add)
+
+        form_outer.addWidget(add_card)
+        form_scroll.setWidget(form_host)
+        outer.addWidget(form_scroll)
+
+        table_card = GlassCard()
+        table_lay = QVBoxLayout(table_card)
+        table_lay.setContentsMargins(16, 14, 16, 16)
+        table_lay.setSpacing(10)
+        table_lay.addWidget(section_title("Active targets"))
+
         self.targets_table = QTableWidget(0, 7)
         self.targets_table.setHorizontalHeaderLabels(
             ["", "Keyword", "Min €", "Max €", "Expect €", "Min profit €", "Actions"]
@@ -583,16 +604,18 @@ class MainWindow(QMainWindow):
         self.targets_table.verticalHeader().setVisible(False)
         self.targets_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.targets_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.targets_table.setMinimumHeight(200)
         h = self.targets_table.horizontalHeader()
         h.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         h.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         for col in (2, 3, 4, 5):
             h.setSectionResizeMode(col, QHeaderView.ResizeMode.Interactive)
-            self.targets_table.setColumnWidth(col, 96)
+            self.targets_table.setColumnWidth(col, 100)
         h.setSectionResizeMode(6, QHeaderView.ResizeMode.ResizeToContents)
-        self.targets_table.verticalHeader().setDefaultSectionSize(48)
+        self.targets_table.verticalHeader().setDefaultSectionSize(52)
         self.targets_table.setAlternatingRowColors(True)
-        outer.addWidget(self.targets_table, 1)
+        table_lay.addWidget(self.targets_table, 1)
+        outer.addWidget(table_card, 1)
 
         return page
 
@@ -610,7 +633,8 @@ class MainWindow(QMainWindow):
         title.setObjectName("SectionTitle")
         head.addWidget(title)
         head.addStretch(1)
-        self.btn_scan_deals = QPushButton("🔄 Scan now")
+        self.btn_scan_deals = QPushButton("Scan now")
+        self.btn_scan_deals.setObjectName("PrimaryButton")
         self.btn_scan_deals.clicked.connect(self._scan_cheap_deals)
         self.btn_clear_deals = QPushButton("Clear")
         self.btn_clear_deals.setObjectName("GhostButton")
@@ -678,7 +702,8 @@ class MainWindow(QMainWindow):
         title.setObjectName("SectionTitle")
         head.addWidget(title)
         head.addStretch(1)
-        self.btn_scan_trends = QPushButton("🔍 Scan trends")
+        self.btn_scan_trends = QPushButton("Scan trends")
+        self.btn_scan_trends.setObjectName("PrimaryButton")
         self.btn_scan_trends.clicked.connect(self._scan_trends)
         head.addWidget(self.btn_scan_trends)
         outer.addLayout(head)
@@ -742,18 +767,19 @@ class MainWindow(QMainWindow):
         outer.setContentsMargins(*CONTENT_MARGINS)
         outer.setSpacing(PAGE_SPACING)
 
-        title = QLabel("Settings")
-        title.setObjectName("SectionTitle")
-        outer.addWidget(title)
+        outer.addWidget(page_header("Settings", "License, Vinted, platforms, and Telegram."))
 
-        lic_card = QFrame()
-        lic_card.setObjectName("Card")
+        scroll = GlassScroll()
+        scroll_host = QWidget()
+        scroll_lay = QVBoxLayout(scroll_host)
+        scroll_lay.setContentsMargins(2, 2, 10, 2)
+        scroll_lay.setSpacing(16)
+
+        lic_card = GlassCard()
         lic_lay = QVBoxLayout(lic_card)
         lic_lay.setContentsMargins(20, 16, 20, 16)
         lic_lay.setSpacing(8)
-        lic_title = QLabel("Subscription & license")
-        lic_title.setObjectName("SectionTitle")
-        lic_lay.addWidget(lic_title)
+        lic_lay.addWidget(section_title("Subscription and license"))
         self.license_status_label = QLabel()
         self.license_status_label.setWordWrap(True)
         self.license_status_label.setObjectName("HintLabel")
@@ -774,14 +800,13 @@ class MainWindow(QMainWindow):
         plans.setWordWrap(True)
         plans.setObjectName("HintLabel")
         lic_lay.addWidget(plans)
-        outer.addWidget(lic_card)
+        scroll_lay.addWidget(lic_card)
 
-        form = QFrame()
-        form.setObjectName("Card")
+        form = GlassCard()
         fl = QGridLayout(form)
-        fl.setContentsMargins(20, 18, 20, 18)
-        fl.setHorizontalSpacing(14)
-        fl.setVerticalSpacing(10)
+        fl.setContentsMargins(26, 24, 26, 24)
+        fl.setHorizontalSpacing(18)
+        fl.setVerticalSpacing(14)
 
         row = 0
         api_hint = QLabel(
@@ -793,7 +818,7 @@ class MainWindow(QMainWindow):
         fl.addWidget(api_hint, row, 0, 1, 4)
         row += 1
 
-        fl.addWidget(QLabel("Session cookie (optional)"), row, 0)
+        fl.addWidget(form_label("Session cookie (optional)"), row, 0)
         self.set_cookie = QLineEdit()
         self.set_cookie.setEchoMode(QLineEdit.EchoMode.Password)
         self.set_cookie.setPlaceholderText("_vinted_de_session value — only if auto-fetch fails")
@@ -806,7 +831,7 @@ class MainWindow(QMainWindow):
         fl.addWidget(self.set_show_cookie, row, 1)
         row += 1
 
-        fl.addWidget(QLabel("Vinted host"), row, 0)
+        fl.addWidget(form_label("Vinted host"), row, 0)
         self.set_host = QComboBox()
         self.set_host.setEditable(True)
         self.set_host.addItems([
@@ -821,12 +846,12 @@ class MainWindow(QMainWindow):
         self.set_host.setCurrentText(self.cfg.vinted_host)
         fl.addWidget(self.set_host, row, 1)
 
-        fl.addWidget(QLabel("Locale"), row, 2)
+        fl.addWidget(form_label("Locale"), row, 2)
         self.set_locale = QLineEdit(self.cfg.vinted_locale)
         fl.addWidget(self.set_locale, row, 3)
         row += 1
 
-        fl.addWidget(QLabel("Poll interval (s)  min / max"), row, 0)
+        fl.addWidget(form_label("Poll interval (seconds) min / max"), row, 0)
         self.set_poll_min = QSpinBox()
         self.set_poll_min.setRange(8, 3600)
         self.set_poll_min.setValue(self.cfg.poll_min_seconds)
@@ -842,10 +867,7 @@ class MainWindow(QMainWindow):
         fl.addWidget(poll_hint, row, 3)
         row += 1
 
-        sep_plat = QLabel("Sniper platforms (global)")
-        sep_plat.setObjectName("HintLabel")
-        sep_plat.setStyleSheet("padding-top: 10px; font-weight: 600;")
-        fl.addWidget(sep_plat, row, 0, 1, 4)
+        fl.addWidget(section_title("Sniper platforms (global)"), row, 0, 1, 4)
         row += 1
 
         self.set_sniper_platforms = PlatformPickerWidget()
@@ -853,7 +875,7 @@ class MainWindow(QMainWindow):
         fl.addWidget(self.set_sniper_platforms, row, 0, 1, 4)
         row += 1
 
-        fl.addWidget(QLabel("Kleinanzeigen API URL"), row, 0)
+        fl.addWidget(form_label("Kleinanzeigen API URL"), row, 0)
         self.set_klein_api = QLineEdit(self.cfg.kleinanzeigen_api_url)
         self.set_klein_api.setPlaceholderText("http://127.0.0.1:8000")
         fl.addWidget(self.set_klein_api, row, 1, 1, 3)
@@ -867,69 +889,64 @@ class MainWindow(QMainWindow):
         fl.addWidget(ka_hint, row, 0, 1, 4)
         row += 1
 
-        fl.addWidget(QLabel("eBay host"), row, 0)
+        fl.addWidget(form_label("eBay host"), row, 0)
         self.set_ebay_host = QLineEdit(self.cfg.ebay_host)
         fl.addWidget(self.set_ebay_host, row, 1)
         row += 1
 
-        sep = QLabel("Telegram (optional)")
-        sep.setObjectName("HintLabel")
-        sep.setStyleSheet("padding-top: 10px; font-weight: 600;")
-        fl.addWidget(sep, row, 0, 1, 4)
+        fl.addWidget(section_title("Telegram"), row, 0, 1, 4)
         row += 1
 
-        fl.addWidget(QLabel("Bot token"), row, 0)
+        fl.addWidget(form_label("Bot token"), row, 0)
         self.set_tg_token = QLineEdit(self.cfg.telegram_bot_token)
         self.set_tg_token.setEchoMode(QLineEdit.EchoMode.Password)
         fl.addWidget(self.set_tg_token, row, 1, 1, 3)
         row += 1
 
-        fl.addWidget(QLabel("Chat ID"), row, 0)
+        fl.addWidget(form_label("Chat ID"), row, 0)
         self.set_tg_chat = QLineEdit(self.cfg.telegram_chat_id)
         fl.addWidget(self.set_tg_chat, row, 1)
 
-        fl.addWidget(QLabel("SerpAPI key (optional)"), row, 2)
+        fl.addWidget(form_label("SerpAPI key (optional)"), row, 2)
         self.set_serp = QLineEdit(self.cfg.serpapi_key)
         self.set_serp.setEchoMode(QLineEdit.EchoMode.Password)
         fl.addWidget(self.set_serp, row, 3)
         row += 1
 
-        outer.addWidget(form)
+        scroll_lay.addWidget(form)
+
+        help_lbl = QLabel(
+            "Backend: bundled dev/app/vendor/pyVinted. "
+            "If search fails, paste _vinted_de_session from browser cookies."
+        )
+        help_lbl.setWordWrap(True)
+        help_lbl.setObjectName("HintLabel")
+        scroll_lay.addWidget(help_lbl)
+
+        scroll.setWidget(scroll_host)
+        outer.addWidget(scroll, 1)
 
         btns = QHBoxLayout()
-        btns.addStretch(1)
-        btn_diag = QPushButton("🔬 Diagnose access")
+        btns.setSpacing(12)
+        btn_diag = QPushButton("Diagnose access")
         btn_diag.setObjectName("GhostButton")
         btn_diag.clicked.connect(self._diagnose_vinted)
-        btns.addWidget(btn_diag)
-
-        btn_test = QPushButton("🧪 Test search")
+        btn_test = QPushButton("Test search")
         btn_test.setObjectName("GhostButton")
         btn_test.clicked.connect(self._test_vinted)
-        btns.addWidget(btn_test)
-
         btn_test_tg = QPushButton("Test Telegram")
         btn_test_tg.setObjectName("GhostButton")
         btn_test_tg.clicked.connect(self._test_telegram)
-        btns.addWidget(btn_test_tg)
-
-        btn_save = QPushButton("💾 Save settings")
+        btn_save = QPushButton("Save settings")
+        btn_save.setObjectName("PrimaryButton")
         btn_save.clicked.connect(self._save_settings)
+        btns.addWidget(btn_diag)
+        btns.addWidget(btn_test)
+        btns.addWidget(btn_test_tg)
+        btns.addStretch(1)
         btns.addWidget(btn_save)
         outer.addLayout(btns)
 
-        help_lbl = QLabel(
-            "Backend: bundled <code>dev/app/vendor/pyVinted</code> (herissondev wrapper)<br>"
-            "<code>vinted.items.search('https://www.vinted.de/catalog?search_text=nike&amp;price_to=20', 20, 1)</code><br><br>"
-            "If search fails, paste <code>_vinted_de_session</code> from Chrome → Application → Cookies."
-        )
-        help_lbl.setWordWrap(True)
-        help_lbl.setTextFormat(Qt.TextFormat.RichText)
-        help_lbl.setOpenExternalLinks(True)
-        help_lbl.setObjectName("HintLabel")
-        outer.addWidget(help_lbl)
-
-        outer.addStretch(1)
         return page
 
     # ----- logs page -----
