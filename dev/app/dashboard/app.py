@@ -977,8 +977,9 @@ class MainWindow(QMainWindow):
         fl.addWidget(self.set_tg_token, row, 1, 1, 3)
         row += 1
 
-        fl.addWidget(form_label("Chat ID"), row, 0)
+        fl.addWidget(form_label("Chat ID(s)"), row, 0)
         self.set_tg_chat = QLineEdit(self.cfg.telegram_chat_id)
+        self.set_tg_chat.setPlaceholderText("group id, private id  e.g. -100123...,7917323723")
         fl.addWidget(self.set_tg_chat, row, 1)
 
         fl.addWidget(form_label("SerpAPI key (optional)"), row, 2)
@@ -1824,17 +1825,40 @@ class MainWindow(QMainWindow):
     def _test_telegram(self) -> None:
         import asyncio
         token = self.set_tg_token.text().strip()
-        chat = self.set_tg_chat.text().strip()
-        if not (token and chat):
+        raw = self.set_tg_chat.text().strip()
+        if not (token and raw):
             QMessageBox.warning(self, "Telegram", "Set both bot token and chat id first.")
+            return
+        chat_ids: list[int] = []
+        for part in raw.split(","):
+            part = part.strip()
+            if not part:
+                continue
+            try:
+                chat_ids.append(int(part))
+            except ValueError:
+                QMessageBox.warning(self, "Telegram", f"Invalid chat id: {part}")
+                return
+        if not chat_ids:
+            QMessageBox.warning(self, "Telegram", "Enter at least one chat id.")
             return
         try:
             from telegram import Bot
+
             async def _send():
                 bot = Bot(token=token)
-                await bot.send_message(chat_id=chat, text="✅ Resellix — test message")
+                for cid in chat_ids:
+                    await bot.send_message(
+                        chat_id=cid,
+                        text="✅ Resellix — test message",
+                    )
+
             asyncio.run(_send())
-            QMessageBox.information(self, "Telegram", "Test message sent.")
+            QMessageBox.information(
+                self,
+                "Telegram",
+                f"Test message sent to {len(chat_ids)} chat(s).",
+            )
         except Exception as exc:
             QMessageBox.critical(self, "Telegram", f"Failed: {exc}")
 
