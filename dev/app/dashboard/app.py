@@ -157,8 +157,8 @@ class MainWindow(QMainWindow):
         brand_block = QFrame()
         brand_block.setObjectName("BrandBlock")
         bb = QVBoxLayout(brand_block)
-        bb.setContentsMargins(20, 22, 20, 16)
-        bb.setSpacing(2)
+        bb.setContentsMargins(22, 26, 22, 20)
+        bb.setSpacing(4)
         brand_title = QLabel("Resellix")
         brand_title.setObjectName("BrandTitle")
         brand_tag = QLabel("Vinted sniper")
@@ -171,6 +171,12 @@ class MainWindow(QMainWindow):
         bb.addWidget(self.sidebar_tier)
         sb.addWidget(brand_block)
 
+        nav_wrap = QFrame()
+        nav_wrap.setObjectName("SidebarNav")
+        nav_lay = QVBoxLayout(nav_wrap)
+        nav_lay.setContentsMargins(14, 16, 14, 12)
+        nav_lay.setSpacing(2)
+
         self.nav_group = QButtonGroup(self)
         self.nav_group.setExclusive(True)
 
@@ -178,8 +184,9 @@ class MainWindow(QMainWindow):
             btn = QPushButton(text)
             btn.setObjectName("NavButton")
             btn.setCheckable(True)
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
             btn.clicked.connect(lambda _=False, i=idx: self._switch_page(i))
-            sb.addWidget(btn)
+            nav_lay.addWidget(btn)
             self.nav_group.addButton(btn, idx)
             return btn
 
@@ -189,7 +196,13 @@ class MainWindow(QMainWindow):
         self.nav_trends = nav_btn("Steal Niches", PAGE_TRENDS)
         self.nav_settings = nav_btn("Settings", PAGE_SETTINGS)
         self.nav_logs = nav_btn("Logs", PAGE_LOGS)
-        sb.addStretch(1)
+        sb.addWidget(nav_wrap, 1)
+
+        footer = QFrame()
+        footer.setObjectName("SidebarFooter")
+        foot_lay = QVBoxLayout(footer)
+        foot_lay.setContentsMargins(18, 14, 18, 18)
+        foot_lay.setSpacing(6)
 
         self._sidebar_update_frame = QFrame()
         self._sidebar_update_frame.setObjectName("SidebarUpdateBanner")
@@ -204,7 +217,7 @@ class MainWindow(QMainWindow):
         update_layout.addWidget(update_title)
         update_layout.addWidget(self._sidebar_update_text)
         self._sidebar_update_frame.hide()
-        sb.addWidget(self._sidebar_update_frame)
+        foot_lay.addWidget(self._sidebar_update_frame)
 
         attribution = QLabel(
             "Thomas Mikhline\n"
@@ -212,11 +225,12 @@ class MainWindow(QMainWindow):
         )
         attribution.setObjectName("SidebarAttribution")
         attribution.setWordWrap(True)
-        sb.addWidget(attribution)
+        foot_lay.addWidget(attribution)
 
         version = QLabel("Resellix v1.0")
         version.setObjectName("SidebarVersion")
-        sb.addWidget(version)
+        foot_lay.addWidget(version)
+        sb.addWidget(footer)
 
         root.addWidget(sidebar)
 
@@ -912,7 +926,7 @@ class MainWindow(QMainWindow):
         help_lbl.setWordWrap(True)
         help_lbl.setTextFormat(Qt.TextFormat.RichText)
         help_lbl.setOpenExternalLinks(True)
-        help_lbl.setStyleSheet("color:#cbd2dc;")
+        help_lbl.setObjectName("HintLabel")
         outer.addWidget(help_lbl)
 
         outer.addStretch(1)

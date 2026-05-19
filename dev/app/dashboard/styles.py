@@ -1,32 +1,59 @@
-"""Resellix — light glass UI theme."""
+"""Resellix — glossy sidebar + clean neutral workspace."""
 from __future__ import annotations
 
-# Light glass palette
-COLOR_BG = "#e8edf5"
-COLOR_BG_ALT = "#dfe6f2"
-COLOR_GLASS = "rgba(255, 255, 255, 0.78)"
-COLOR_GLASS_HI = "rgba(255, 255, 255, 0.92)"
-COLOR_GLASS_SIDEBAR = "rgba(255, 255, 255, 0.65)"
-COLOR_BORDER = "rgba(15, 23, 42, 0.08)"
-COLOR_BORDER_HI = "rgba(15, 23, 42, 0.14)"
-COLOR_SHADOW = "rgba(79, 110, 247, 0.12)"
+# —— One accent family (indigo) ——
+ACCENT = "#6366f1"
+ACCENT_HOVER = "#818cf8"
+ACCENT_GLOW = "rgba(99, 102, 241, 0.35)"
 
-COLOR_TEXT = "#0f172a"
-COLOR_TEXT_MUTED = "#64748b"
-COLOR_ACCENT = "#4f6ef7"
-COLOR_ACCENT_HOVER = "#6b84ff"
-COLOR_ACCENT_SOFT = "rgba(79, 110, 247, 0.14)"
-COLOR_GREEN = "#10b981"
-COLOR_RED = "#ef4444"
-COLOR_YELLOW = "#f59e0b"
-COLOR_INPUT = "rgba(255, 255, 255, 0.95)"
+# —— Workspace (neutral, no rainbow) ——
+COLOR_BG = "#eef1f6"
+COLOR_SURFACE = "#ffffff"
+COLOR_BORDER = "rgba(20, 28, 45, 0.08)"
+COLOR_BORDER_HI = "rgba(20, 28, 45, 0.12)"
+
+COLOR_TEXT = "#141c2b"
+COLOR_TEXT_MUTED = "#6b778c"
+COLOR_SUCCESS = "#059669"
 
 FONT_UI = '"Segoe UI", "Inter", -apple-system, BlinkMacSystemFont, sans-serif'
 FONT_MONO = '"Cascadia Code", "Consolas", monospace'
 
-CONTENT_MARGIN = "32px"
-CARD_RADIUS = "16px"
-BTN_RADIUS = "12px"
+CARD_RADIUS = "14px"
+BTN_RADIUS = "10px"
+NAV_RADIUS = "11px"
+
+# Glossy sidebar: single hue, top highlight → deep base
+SIDEBAR_GRADIENT = """
+    qlineargradient(
+        x1:0, y1:0, x2:0, y2:1,
+        stop:0 #3d4f72,
+        stop:0.35 #2f3d5c,
+        stop:1 #1a2438
+    )
+"""
+SIDEBAR_SHINE = """
+    qlineargradient(
+        x1:0, y1:0, x2:0, y2:1,
+        stop:0 rgba(255, 255, 255, 0.16),
+        stop:0.08 rgba(255, 255, 255, 0.06),
+        stop:1 rgba(255, 255, 255, 0)
+    )
+"""
+NAV_ACTIVE_GRADIENT = """
+    qlineargradient(
+        x1:0, y1:0, x2:1, y2:0,
+        stop:0 rgba(255, 255, 255, 0.22),
+        stop:1 rgba(255, 255, 255, 0.08)
+    )
+"""
+NAV_HOVER_GRADIENT = """
+    qlineargradient(
+        x1:0, y1:0, x2:0, y2:1,
+        stop:0 rgba(255, 255, 255, 0.1),
+        stop:1 rgba(255, 255, 255, 0.03)
+    )
+"""
 
 STYLESHEET = f"""
 * {{
@@ -44,294 +71,322 @@ QWidget {{
 }}
 
 QWidget#ContentPage {{
-    background-color: transparent;
+    background-color: {COLOR_BG};
 }}
 
 QDialog {{
-    background-color: {COLOR_GLASS_HI};
+    background-color: {COLOR_SURFACE};
 }}
 
-/* —— Sidebar —— */
+/* ═══════════════ SIDEBAR (glossy, 1 palette) ═══════════════ */
 QFrame#Sidebar {{
-    background-color: {COLOR_GLASS_SIDEBAR};
-    border-right: 1px solid {COLOR_BORDER};
+    background: {SIDEBAR_GRADIENT};
+    border: none;
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
 }}
+
 QFrame#BrandBlock {{
+    background: {SIDEBAR_SHINE};
+    border: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}}
+
+QFrame#SidebarNav {{
     background: transparent;
     border: none;
 }}
-QLabel#BrandTitle {{
-    font-size: 24px;
-    font-weight: 700;
-    letter-spacing: -0.6px;
-    color: {COLOR_TEXT};
+
+QFrame#SidebarFooter {{
+    background: transparent;
+    border: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
 }}
+
+QFrame#Sidebar QLabel {{
+    background: transparent;
+    color: rgba(255, 255, 255, 0.72);
+}}
+
+QLabel#BrandTitle {{
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: #ffffff;
+}}
+
 QLabel#BrandTagline {{
     font-size: 12px;
-    color: {COLOR_TEXT_MUTED};
+    color: rgba(255, 255, 255, 0.55);
     padding-top: 2px;
 }}
+
 QLabel#SidebarTier {{
-    color: {COLOR_ACCENT};
     font-size: 11px;
     font-weight: 600;
-    padding-top: 6px;
+    color: rgba(255, 255, 255, 0.88);
+    padding-top: 8px;
 }}
+
 QPushButton#NavButton {{
     background: transparent;
-    border: none;
+    border: 1px solid transparent;
     text-align: left;
-    padding: 12px 16px;
-    margin: 2px 14px;
+    padding: 11px 14px;
+    margin: 2px 0;
     font-size: 13px;
     font-weight: 500;
-    color: {COLOR_TEXT_MUTED};
-    border-radius: {BTN_RADIUS};
+    color: rgba(255, 255, 255, 0.62);
+    border-radius: {NAV_RADIUS};
 }}
+
 QPushButton#NavButton:hover {{
-    background: rgba(79, 110, 247, 0.08);
-    color: {COLOR_TEXT};
+    background: {NAV_HOVER_GRADIENT};
+    color: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.12);
 }}
+
 QPushButton#NavButton:checked {{
-    background: {COLOR_ACCENT_SOFT};
-    color: {COLOR_ACCENT};
+    background: {NAV_ACTIVE_GRADIENT};
+    color: #ffffff;
     font-weight: 600;
-    border: 1px solid rgba(79, 110, 247, 0.22);
+    border: 1px solid rgba(255, 255, 255, 0.28);
 }}
+
 QPushButton#NavButton:pressed {{
-    background: rgba(79, 110, 247, 0.2);
+    background: rgba(0, 0, 0, 0.15);
+    padding-top: 12px;
+    padding-bottom: 10px;
 }}
 
 QFrame#SidebarUpdateBanner {{
-    background: rgba(245, 158, 11, 0.12);
-    border: 1px solid rgba(245, 158, 11, 0.35);
-    border-radius: {BTN_RADIUS};
-    margin: 0 12px 8px 12px;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: {NAV_RADIUS};
+    margin: 8px 0;
 }}
 QLabel#SidebarUpdateTitle {{
-    color: #b45309;
+    color: rgba(255, 255, 255, 0.92);
     font-size: 11px;
     font-weight: 600;
 }}
 QLabel#SidebarUpdateText {{
-    color: {COLOR_TEXT_MUTED};
+    color: rgba(255, 255, 255, 0.55);
     font-size: 10px;
-    line-height: 1.35;
-}}
-QLabel#SidebarAttribution {{
-    color: {COLOR_TEXT_MUTED};
-    font-size: 9px;
-    padding: 0 18px 6px 18px;
-    line-height: 1.35;
-}}
-QLabel#SidebarVersion {{
-    color: {COLOR_TEXT_MUTED};
-    font-size: 11px;
-    padding: 0 18px 22px 18px;
 }}
 
-/* —— Status strip —— */
+QLabel#SidebarAttribution {{
+    color: rgba(255, 255, 255, 0.38);
+    font-size: 9px;
+    line-height: 1.4;
+}}
+
+QLabel#SidebarVersion {{
+    color: rgba(255, 255, 255, 0.32);
+    font-size: 10px;
+}}
+
+/* ═══════════════ TOP BAR + CONTENT ═══════════════ */
 QFrame#StatusStrip {{
-    background-color: {COLOR_GLASS};
+    background-color: {COLOR_SURFACE};
     border-bottom: 1px solid {COLOR_BORDER};
-    min-height: 60px;
+    min-height: 58px;
 }}
+
+QLabel#StatusDot {{
+    background-color: {COLOR_SUCCESS};
+    border: 1px solid rgba(255, 255, 255, 0.5);
+}}
+QLabel#StatusDotPaused {{
+    background-color: #d97706;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+}}
+QLabel#StatusDotError {{
+    background-color: #94a3b8;
+}}
+
 QLabel#StatusDot, QLabel#StatusDotPaused, QLabel#StatusDotError {{
-    min-width: 10px;
-    max-width: 10px;
-    min-height: 10px;
-    max-height: 10px;
+    min-width: 9px;
+    max-width: 9px;
+    min-height: 9px;
+    max-height: 9px;
     border-radius: 5px;
-    margin-right: 4px;
 }}
-QLabel#StatusDot {{ background-color: {COLOR_GREEN}; }}
-QLabel#StatusDotPaused {{ background-color: {COLOR_YELLOW}; }}
-QLabel#StatusDotError {{ background-color: #94a3b8; }}
+
 QLabel#ToolbarLabel {{
     color: {COLOR_TEXT_MUTED};
     font-size: 12px;
     font-weight: 500;
-    padding: 0 6px;
-    min-width: 88px;
+    padding: 0 8px;
+    min-width: 84px;
 }}
 
-/* —— Cards & typography —— */
 QFrame#Card, QFrame#DealCard, QFrame#StatCard {{
-    background-color: {COLOR_GLASS_HI};
+    background-color: {COLOR_SURFACE};
     border: 1px solid {COLOR_BORDER};
     border-radius: {CARD_RADIUS};
 }}
+
 QFrame#DealCard:hover {{
     border-color: {COLOR_BORDER_HI};
-    background-color: rgba(255, 255, 255, 0.98);
 }}
+
 QLabel#CardTitle {{
     font-size: 11px;
     font-weight: 600;
     color: {COLOR_TEXT_MUTED};
-    letter-spacing: 0.4px;
+    letter-spacing: 0.5px;
 }}
+
 QLabel#CardValue {{
-    font-size: 32px;
+    font-size: 30px;
     font-weight: 700;
-    letter-spacing: -0.8px;
+    letter-spacing: -0.6px;
     color: {COLOR_TEXT};
-    min-height: 38px;
+    min-height: 36px;
 }}
+
 QLabel#SectionTitle {{
-    font-size: 22px;
+    font-size: 21px;
     font-weight: 700;
-    letter-spacing: -0.4px;
-    padding: 0 0 8px 0;
+    letter-spacing: -0.35px;
     color: {COLOR_TEXT};
+    padding: 0 0 4px 0;
 }}
+
 QLabel#PageSubtitle {{
     font-size: 13px;
     color: {COLOR_TEXT_MUTED};
-    padding-bottom: 12px;
+    padding-bottom: 10px;
 }}
-QLabel#HintLabel {{
+
+QLabel#HintLabel, QLabel#ProgressLabel {{
     color: {COLOR_TEXT_MUTED};
     font-size: 12px;
-    line-height: 1.4;
-}}
-QLabel#ProgressLabel {{
-    color: {COLOR_TEXT_MUTED};
-    font-size: 13px;
-    font-weight: 500;
-    padding: 8px 0;
+    line-height: 1.45;
 }}
 
-/* —— Inputs —— */
+/* ═══════════════ INPUTS ═══════════════ */
 QLineEdit, QSpinBox, QDoubleSpinBox, QPlainTextEdit, QComboBox {{
-    background-color: {COLOR_INPUT};
+    background-color: {COLOR_SURFACE};
     border: 1px solid {COLOR_BORDER};
     border-radius: {BTN_RADIUS};
-    padding: 10px 14px;
-    min-height: 20px;
+    padding: 9px 12px;
     color: {COLOR_TEXT};
-    selection-background-color: {COLOR_ACCENT_SOFT};
-    selection-color: {COLOR_TEXT};
+    selection-background-color: rgba(99, 102, 241, 0.2);
 }}
+
 QSpinBox, QDoubleSpinBox {{
     min-width: 108px;
-    padding-right: 8px;
-}}
-QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QPlainTextEdit:focus, QComboBox:focus {{
-    border: 1px solid {COLOR_ACCENT};
-    background-color: #ffffff;
-}}
-QComboBox::drop-down {{
-    border: none;
-    width: 28px;
-}}
-QComboBox QAbstractItemView {{
-    background-color: #ffffff;
-    border: 1px solid {COLOR_BORDER};
-    border-radius: {BTN_RADIUS};
-    padding: 4px;
-    selection-background-color: {COLOR_ACCENT_SOFT};
 }}
 
-/* —— Buttons —— */
+QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus,
+QPlainTextEdit:focus, QComboBox:focus {{
+    border: 1px solid {ACCENT};
+}}
+
+QComboBox QAbstractItemView {{
+    background: {COLOR_SURFACE};
+    border: 1px solid {COLOR_BORDER};
+    border-radius: {BTN_RADIUS};
+    selection-background-color: rgba(99, 102, 241, 0.15);
+}}
+
+/* ═══════════════ BUTTONS (accent only here) ═══════════════ */
 QPushButton {{
-    background-color: {COLOR_ACCENT};
+    background-color: {ACCENT};
     color: #ffffff;
     border: none;
     border-radius: {BTN_RADIUS};
-    padding: 10px 18px;
-    font-size: 13px;
+    padding: 9px 16px;
     font-weight: 600;
-    min-height: 20px;
 }}
+
 QPushButton:hover {{
-    background-color: {COLOR_ACCENT_HOVER};
+    background-color: {ACCENT_HOVER};
 }}
+
 QPushButton:pressed {{
-    background-color: #3d5ce6;
-    padding-top: 11px;
-    padding-bottom: 9px;
+    background-color: #4f46e5;
+    padding-top: 10px;
+    padding-bottom: 8px;
 }}
+
 QPushButton:disabled {{
-    background-color: #cbd5e1;
+    background-color: #e2e8f0;
     color: #94a3b8;
 }}
+
 QPushButton#PrimaryButton {{
-    background-color: {COLOR_ACCENT};
-    padding: 11px 22px;
+    background: qlineargradient(
+        x1:0, y1:0, x2:0, y2:1,
+        stop:0 {ACCENT_HOVER},
+        stop:1 {ACCENT}
+    );
+    border: 1px solid rgba(255, 255, 255, 0.2);
 }}
+
 QPushButton#GhostButton, QToolButton#SizeFilterButton {{
-    background-color: rgba(255, 255, 255, 0.55);
+    background-color: {COLOR_SURFACE};
     border: 1px solid {COLOR_BORDER};
     color: {COLOR_TEXT};
     font-weight: 500;
 }}
-QPushButton#GhostButton:hover, QToolButton#SizeFilterButton:hover {{
-    background-color: #ffffff;
+
+QPushButton#GhostButton:hover {{
     border-color: {COLOR_BORDER_HI};
-}}
-QPushButton#GhostButton:pressed {{
-    background-color: {COLOR_ACCENT_SOFT};
-}}
-QPushButton#DangerButton {{
-    background-color: {COLOR_RED};
-}}
-QPushButton#DangerButton:hover {{
-    background-color: #f87171;
+    background-color: #f8fafc;
 }}
 
-QMenu#SizeFilterMenu {{
-    background-color: #ffffff;
+QPushButton#FilterChip {{
+    background-color: {COLOR_SURFACE};
     border: 1px solid {COLOR_BORDER};
-    border-radius: {CARD_RADIUS};
-    padding: 6px;
-}}
-QFrame#SizeFilterPopup {{
-    background-color: #ffffff;
-}}
-QCheckBox {{
-    spacing: 10px;
-    color: {COLOR_TEXT};
-    font-size: 13px;
-    padding: 4px 2px;
-}}
-QCheckBox::indicator {{
-    width: 20px;
-    height: 20px;
-    border-radius: 6px;
-    border: 1px solid {COLOR_BORDER_HI};
-    background: {COLOR_INPUT};
-}}
-QCheckBox::indicator:checked {{
-    background: {COLOR_ACCENT};
-    border-color: {COLOR_ACCENT};
+    color: {COLOR_TEXT_MUTED};
+    font-weight: 500;
+    padding: 6px 12px;
+    min-height: 16px;
 }}
 
-/* —— Tables —— */
+QPushButton#FilterChip:hover {{
+    border-color: {COLOR_BORDER_HI};
+    color: {COLOR_TEXT};
+}}
+
+QPushButton#FilterChip:checked {{
+    background: rgba(99, 102, 241, 0.1);
+    border-color: {ACCENT};
+    color: {ACCENT};
+    font-weight: 600;
+}}
+
+QPushButton#DangerButton {{
+    background-color: #dc2626;
+}}
+
+/* ═══════════════ TABLE + SCROLL ═══════════════ */
 QTableWidget {{
-    background-color: {COLOR_GLASS_HI};
+    background: {COLOR_SURFACE};
     border: 1px solid {COLOR_BORDER};
     border-radius: {CARD_RADIUS};
     gridline-color: {COLOR_BORDER};
-    alternate-background-color: rgba(248, 250, 252, 0.9);
+    alternate-background-color: #f8fafc;
 }}
+
 QHeaderView::section {{
-    background: rgba(248, 250, 252, 0.95);
-    padding: 12px 14px;
+    background: #f8fafc;
+    padding: 11px 12px;
     border: none;
     border-bottom: 1px solid {COLOR_BORDER};
     color: {COLOR_TEXT_MUTED};
     font-size: 11px;
     font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
 }}
+
 QTableWidget::item {{
-    padding: 12px 14px;
-    border-bottom: 1px solid {COLOR_BORDER};
+    padding: 11px 12px;
 }}
+
 QTableWidget::item:selected {{
-    background-color: {COLOR_ACCENT_SOFT};
+    background-color: rgba(99, 102, 241, 0.12);
     color: {COLOR_TEXT};
 }}
 
@@ -339,47 +394,77 @@ QScrollArea {{
     border: none;
     background: transparent;
 }}
+
 QScrollBar:vertical {{
     background: transparent;
-    width: 10px;
-    margin: 4px 2px;
-}}
-QScrollBar::handle:vertical {{
-    background: rgba(15, 23, 42, 0.18);
-    border-radius: 5px;
-    min-height: 48px;
-}}
-QScrollBar::handle:vertical:hover {{
-    background: rgba(15, 23, 42, 0.28);
-}}
-QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
-    height: 0;
+    width: 8px;
 }}
 
-/* —— Deal cards —— */
-QLabel#DealTitle {{ font-size: 15px; font-weight: 600; line-height: 1.3; }}
-QLabel#DealPrice {{ font-size: 20px; font-weight: 700; color: {COLOR_GREEN}; }}
-QLabel#DealMeta {{ font-size: 12px; color: {COLOR_TEXT_MUTED}; line-height: 1.35; }}
-QLabel#DealSavings {{ font-size: 12px; color: #b45309; font-weight: 600; }}
+QScrollBar::handle:vertical {{
+    background: rgba(20, 28, 45, 0.15);
+    border-radius: 4px;
+    min-height: 40px;
+}}
+
+QCheckBox::indicator {{
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    border: 1px solid {COLOR_BORDER_HI};
+    background: {COLOR_SURFACE};
+}}
+
+QCheckBox::indicator:checked {{
+    background: {ACCENT};
+    border-color: {ACCENT};
+}}
+
+/* ═══════════════ DEAL CARDS ═══════════════ */
+QLabel#DealTitle {{
+    font-size: 14px;
+    font-weight: 600;
+}}
+
+QLabel#DealPrice {{
+    font-size: 19px;
+    font-weight: 700;
+    color: {COLOR_TEXT};
+}}
+
+QLabel#DealMeta {{
+    font-size: 12px;
+    color: {COLOR_TEXT_MUTED};
+}}
+
+QLabel#DealSavings {{
+    font-size: 12px;
+    color: {COLOR_SUCCESS};
+    font-weight: 600;
+}}
+
 QLabel#PhotoLabel {{
-    background-color: {COLOR_BG_ALT};
+    background: #f1f5f9;
     border: 1px solid {COLOR_BORDER};
     border-radius: {BTN_RADIUS};
     color: {COLOR_TEXT_MUTED};
-    font-size: 11px;
 }}
 
 QPlainTextEdit#LogView {{
-    background-color: #f8fafc;
+    background: {COLOR_SURFACE};
     border: 1px solid {COLOR_BORDER};
     border-radius: {CARD_RADIUS};
     font-family: {FONT_MONO};
     font-size: 12px;
-    padding: 14px;
-    line-height: 1.45;
+    padding: 12px;
+}}
+
+QMenu#SizeFilterMenu, QFrame#SizeFilterPopup {{
+    background: {COLOR_SURFACE};
+    border: 1px solid {COLOR_BORDER};
+    border-radius: {CARD_RADIUS};
 }}
 
 QMessageBox {{
-    background-color: {COLOR_GLASS_HI};
+    background: {COLOR_SURFACE};
 }}
 """

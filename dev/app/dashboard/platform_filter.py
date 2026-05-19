@@ -26,7 +26,7 @@ class PlatformFilterBar(QWidget):
         lay.setSpacing(6)
 
         self._all_btn = QPushButton("All")
-        self._all_btn.setObjectName("GhostButton")
+        self._all_btn.setObjectName("FilterChip")
         self._all_btn.setCheckable(True)
         self._all_btn.setChecked(True)
         self._all_btn.clicked.connect(self._on_all)
@@ -35,7 +35,7 @@ class PlatformFilterBar(QWidget):
         self._buttons: dict[str, QPushButton] = {}
         for key in ALL_PLATFORMS:
             btn = QPushButton(PLATFORM_LABELS.get(key, key))
-            btn.setObjectName("GhostButton")
+            btn.setObjectName("FilterChip")
             btn.setCheckable(True)
             btn.clicked.connect(lambda _=False, k=key: self._toggle(k))
             self._buttons[key] = btn
