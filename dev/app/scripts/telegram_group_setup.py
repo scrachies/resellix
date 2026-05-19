@@ -23,7 +23,7 @@ def main() -> int:
 
     print("1) Create a Telegram group, add your Resellix bot + your friend.")
     print("2) In the group send:  /start")
-    print("3) In @BotFather send:  /setprivacy  →  Disable  (so the bot sees commands in groups)")
+    print("3) In @BotFather send:  /setprivacy  ->  Disable  (so the bot sees commands in groups)")
     print()
     input("Press Enter when done...")
     print()

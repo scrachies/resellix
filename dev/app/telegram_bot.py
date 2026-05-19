@@ -28,9 +28,11 @@ from telegram import Update
 from telegram.ext import (
     Application,
     ApplicationBuilder,
+    ApplicationHandlerStop,
     CommandHandler,
     ContextTypes,
     MessageHandler,
+    TypeHandler,
     filters,
 )
 
@@ -172,10 +174,31 @@ class ResellTelegramBot:
             return True
         return update.effective_chat.id in allowed
 
+    async def _reject_unauthorized(self, update: Update) -> bool:
+        """Return True if handled (caller should stop). Replies with chat id for group setup."""
+        if self._authorized(update) or not update.effective_chat or not update.message:
+            return False
+        chat = update.effective_chat
+        title = chat.title or chat.first_name or "chat"
+        await update.message.reply_text(
+            f"This bot is not configured for “{title}” yet.\n\n"
+            f"Add this to dev/.env on the PC running Resellix:\n"
+            f"TELEGRAM_CHAT_ID={chat.id}\n\n"
+            f"Or comma-separated with your private id:\n"
+            f"TELEGRAM_CHAT_ID={chat.id},YOUR_PRIVATE_ID\n\n"
+            f"Then restart Resellix. (@BotFather: /setprivacy -> Disable for groups.)",
+        )
+        return True
+
     # ------------------------------------------------------------------
+
+    async def _gate_auth(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+        if await self._reject_unauthorized(update):
+            raise ApplicationHandlerStop()
 
     def build_app(self) -> Application:
         app = ApplicationBuilder().token(self.cfg.telegram_bot_token).build()
+        app.add_handler(TypeHandler(Update, self._gate_auth), group=-1)
         app.add_handler(CommandHandler("start", self._cmd_start))
         app.add_handler(CommandHandler("help", self._cmd_help))
         app.add_handler(CommandHandler("search", self._cmd_search))
@@ -195,15 +218,11 @@ class ResellTelegramBot:
     # ------- handlers --------------------------------------------------
 
     async def _cmd_start(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
-        if not self._authorized(update):
-            return
         await update.message.reply_html(
             "Resellix is online.\n\n" + self.HELP_TEXT
         )
 
     async def _cmd_help(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
-        if not self._authorized(update):
-            return
         await update.message.reply_html(self.HELP_TEXT)
 
     async def _cmd_search(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
